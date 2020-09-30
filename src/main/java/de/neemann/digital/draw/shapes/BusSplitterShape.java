@@ -6,7 +6,6 @@
 package de.neemann.digital.draw.shapes;
 
 import de.neemann.digital.core.BitsException;
-import de.neemann.digital.core.Observer;
 import de.neemann.digital.core.element.ElementAttributes;
 import de.neemann.digital.core.element.Keys;
 import de.neemann.digital.core.element.PinDescriptions;
@@ -56,22 +55,22 @@ public class BusSplitterShape implements Shape {
     }
 
     @Override
-    public Interactor applyStateMonitor(IOState ioState, Observer guiObserver) {
+    public Interactor applyStateMonitor(IOState ioState) {
         return null;
     }
 
     @Override
     public void drawTo(Graphic graphic, Style heighLight) {
         Vector pos = new Vector(-2, 0 - 3);
-        graphic.drawText(pos, pos.add(2, 0), outputs.get(0).getName(), Orientation.RIGHTBOTTOM, Style.SHAPE_SPLITTER);
+        graphic.drawText(pos, outputs.get(0).getName(), Orientation.RIGHTBOTTOM, Style.SHAPE_SPLITTER);
         graphic.drawLine(new Vector(0, 0), new Vector(SIZE2, 0), Style.NORMAL);
         pos = new Vector(-2, SIZE - 3);
-        graphic.drawText(pos, pos.add(2, 0), inputs.get(0).getName(), Orientation.RIGHTBOTTOM, Style.SHAPE_SPLITTER);
+        graphic.drawText(pos, inputs.get(0).getName(), Orientation.RIGHTBOTTOM, Style.SHAPE_SPLITTER);
         graphic.drawLine(new Vector(0, SIZE), new Vector(SIZE2, SIZE), Style.NORMAL);
 
         for (int i = 0; i < outputs.size() - 1; i++) {
             pos = new Vector(SIZE + 2, i * spreading * SIZE - 3);
-            graphic.drawText(pos, pos.add(2, 0), outputs.get(i + 1).getName(), Orientation.LEFTBOTTOM, Style.SHAPE_SPLITTER);
+            graphic.drawText(pos, outputs.get(i + 1).getName(), Orientation.LEFTBOTTOM, Style.SHAPE_SPLITTER);
             graphic.drawLine(new Vector(SIZE, i * spreading * SIZE), new Vector(SIZE2, i * spreading * SIZE), Style.NORMAL);
         }
 

@@ -5,30 +5,63 @@
  */
 package de.neemann.digital.draw.graphics;
 
+import de.neemann.digital.core.element.ElementAttributes;
+
+import java.awt.*;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.HashSet;
+
+import static de.neemann.digital.draw.graphics.GraphicSwing.getMirrorYOrientation;
 
 /**
  * Used to create a SVG representation of the circuit.
- * Don't use this implementation directly. Use {@link GraphicSVGIndex} to create plain SVG or
- * {@link GraphicSVGLaTeX} if you want to include your SVG to LaTeX.
  */
-public class GraphicSVG implements Graphic {
+public class GraphicSVG extends Graphic {
     private static final int DEF_SCALE = 15;
     private final OutputStream out;
     private final File source;
     private final int svgScale;
     private BufferedWriter w;
+    private TextStyle textStyle = new TextFormatSVG();
+    private ColorStyle colorStyle = Style::getColor;
+    private HashSet<Flag> flags = new HashSet<>();
 
     /**
      * Creates a new instance.
      *
      * @param out the stream
-     * @throws IOException IOException
      */
-    public GraphicSVG(OutputStream out) throws IOException {
+    public GraphicSVG(OutputStream out) {
+        this(out, SVGSettings.getInstance().getAttributes());
+    }
+
+    /**
+     * Creates a new instance.
+     *
+     * @param out the stream
+     * @param a   the attributes
+     */
+    public GraphicSVG(OutputStream out, ElementAttributes a) {
         this(out, null, DEF_SCALE);
+        if (a.get(SVGSettings.LATEX))
+            setTextStyle(new TextFormatLaTeX(a.get(SVGSettings.PINS_IN_MATH_MODE)));
+        if (a.get(SVGSettings.HIGH_CONTRAST))
+            setColorStyle(new ColorStyleHighContrast());
+        if (a.get(SVGSettings.SMALL_IO))
+            setFlag(Flag.smallIO);
+        if (a.get(SVGSettings.HIDE_TEST))
+            setFlag(Flag.hideTest);
+        if (a.get(SVGSettings.NO_SHAPE_FILLING))
+            setFlag(Flag.noShapeFilling);
+        if (a.get(SVGSettings.NO_PIN_MARKER))
+            setFlag(Flag.noPinMarker);
+        if (a.get(SVGSettings.THINNER_LINES))
+            setFlag(Flag.thinnerLines);
+
+        if (a.get(SVGSettings.MONOCHROME))
+            setColorStyle(new ColorStyleMonochrome(colorStyle));
     }
 
     /**
@@ -49,9 +82,8 @@ public class GraphicSVG implements Graphic {
      * @param out      the stream to write the file to
      * @param source   source file, only used to create a comment in the SVG file
      * @param svgScale the scaling
-     * @throws IOException IOException
      */
-    public GraphicSVG(OutputStream out, File source, int svgScale) throws IOException {
+    public GraphicSVG(OutputStream out, File source, int svgScale) {
         this.out = out;
         this.source = source;
         this.svgScale = svgScale;
@@ -117,17 +149,24 @@ public class GraphicSVG implements Graphic {
             if (p.getEvenOdd() && style.isFilled())
                 w.write(" fill-rule=\"evenodd\"");
 
-            if (style.isFilled() && p.isClosed())
+            if (style.isFilled() && p.isClosed() && !isFlagSet(Flag.noShapeFilling))
                 w.write(" stroke=\"" + getColor(style) + "\" stroke-width=\"" + getStrokeWidth(style) + "\" fill=\"" + getColor(style) + "\" fill-opacity=\"" + getOpacity(style) + "\"/>\n");
-            else
-                w.write(" stroke=\"" + getColor(style) + "\" stroke-width=\"" + getStrokeWidth(style) + "\" fill=\"none\"/>\n");
+            else {
+                double strokeWidth = getStrokeWidth(style);
+                if (strokeWidth == 0)
+                    strokeWidth = getStrokeWidth(Style.THIN);
+                w.write(" stroke=\"" + getColor(style) + "\" stroke-width=\"" + strokeWidth + "\" fill=\"none\"/>\n");
+            }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private static double getStrokeWidth(Style style) {
-        return style.getThickness() * 0.7;
+    private double getStrokeWidth(Style style) {
+        if (isFlagSet(Flag.thinnerLines))
+            return style.getThickness() * 0.7;
+        else
+            return style.getThickness();
     }
 
     @Override
@@ -148,11 +187,11 @@ public class GraphicSVG implements Graphic {
     }
 
     @Override
-    public void drawText(VectorInterface p1, VectorInterface p2, String text, Orientation orientation, Style style) {
+    public void drawText(VectorInterface p1, VectorInterface p2, VectorInterface p3, String text, Orientation orientation, Style style) {
         if (text == null || text.length() == 0) return;
 
         try {
-            text = formatText(text, style);
+            text = textStyle.format(text, style);
 
             boolean rotateText = false;
             if (p1.getY() == p2.getY()) {   // 0 and 180 deg
@@ -167,7 +206,8 @@ public class GraphicSVG implements Graphic {
             }
 
             VectorFloat p = new VectorFloat(p1);
-            switch (orientation.getY()) {
+            int oy = getMirrorYOrientation(orientation, p1, p2, p3);
+            switch (oy) {
                 case 1:
                     p = p.add(new VectorFloat(0, style.getFontSize() / 2f - style.getFontSize() / 8f));
                     break;
@@ -180,24 +220,12 @@ public class GraphicSVG implements Graphic {
             }
 
             if (rotateText)
-                w.write("<text text-anchor=\"" + getAchor(orientation.getX()) + "\" x=\"" + p.getXFloat() + "\" y=\"" + p.getYFloat() + "\" fill=\"" + getColor(style) + "\" style=\"font-size:" + style.getFontSize() + "\" transform=\"rotate(-90," + str(p1) + ")\" >" + text + "</text>\n");
+                w.write("<text text-anchor=\"" + getAchor(orientation.getX()) + "\" x=\"" + p.getXFloat() + "\" y=\"" + p.getYFloat() + "\" fill=\"" + getColor(style) + "\" style=\"font-size:" + style.getFontSize() + "px\" transform=\"rotate(-90," + str(p1) + ")\" >" + text + "</text>\n");
             else
-                w.write("<text text-anchor=\"" + getAchor(orientation.getX()) + "\" x=\"" + p.getXFloat() + "\" y=\"" + p.getYFloat() + "\" fill=\"" + getColor(style) + "\" style=\"font-size:" + style.getFontSize() + "\">" + text + "</text>\n");
+                w.write("<text text-anchor=\"" + getAchor(orientation.getX()) + "\" x=\"" + p.getXFloat() + "\" y=\"" + p.getYFloat() + "\" fill=\"" + getColor(style) + "\" style=\"font-size:" + style.getFontSize() + "px\">" + text + "</text>\n");
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    /**
-     * Is used by drawText to format the given text to SVG.
-     * This implementation only calls escapeXML(text).
-     *
-     * @param text  the text
-     * @param style the text style
-     * @return the formatted text
-     */
-    public String formatText(String text, Style style) {
-        return escapeXML(text);
     }
 
     /**
@@ -207,8 +235,8 @@ public class GraphicSVG implements Graphic {
      * @param style the {@link Style}
      * @return the COLOR
      */
-    protected String getColor(Style style) {
-        return "#" + Integer.toHexString(style.getColor().getRGB()).substring(2);
+    private String getColor(Style style) {
+        return "#" + Integer.toHexString(colorStyle.getColor(style).getRGB()).substring(2);
     }
 
     private String getOpacity(Style style) {
@@ -291,6 +319,51 @@ public class GraphicSVG implements Graphic {
 
     private String str(VectorInterface p) {
         return p.getXFloat() + "," + p.getYFloat();
+    }
+
+    private void setTextStyle(TextStyle textStyle) {
+        this.textStyle = textStyle;
+    }
+
+    private void setColorStyle(ColorStyle colorStyle) {
+        this.colorStyle = colorStyle;
+    }
+
+    private void setFlag(Flag flag) {
+        flags.add(flag);
+    }
+
+    @Override
+    public boolean isFlagSet(Flag flag) {
+        return flags.contains(flag);
+    }
+
+    /**
+     * Defines the text style.
+     */
+    public interface TextStyle {
+        /**
+         * Is used by drawText to format the given text to SVG.
+         * This implementation only calls escapeXML(text).
+         *
+         * @param text  the text
+         * @param style the text style
+         * @return the formatted text
+         */
+        String format(String text, Style style);
+    }
+
+    /**
+     * Defines the color style
+     */
+    public interface ColorStyle {
+        /**
+         * Returns the color to by used for the given style.
+         *
+         * @param style the style
+         * @return the color to be used
+         */
+        Color getColor(Style style);
     }
 
 }

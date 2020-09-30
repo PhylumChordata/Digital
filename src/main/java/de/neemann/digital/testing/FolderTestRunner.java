@@ -186,20 +186,25 @@ public class FolderTestRunner {
                 try {
                     Circuit circuit = Circuit.loadCircuit(f.file, shapeFactory);
                     ArrayList<TestCase> testCases = new ArrayList<>();
-                    for (VisualElement el : circuit.getElements()) {
-                        if (el.equalsDescription(TestCaseElement.TESTCASEDESCRIPTION)) {
-                            String label = el.getElementAttributes().getLabel();
-                            TestCaseDescription testData = el.getElementAttributes().get(TestCaseElement.TESTDATA);
-                            testCases.add(new TestCase(label, testData));
-                        }
+                    for (VisualElement el : circuit.getTestCases()) {
+                        String label = el.getElementAttributes().getLabel();
+                        TestCaseDescription testData = el.getElementAttributes().get(TestCaseElement.TESTDATA);
+                        testCases.add(new TestCase(label, testData));
                     }
-                    if (testCases.isEmpty())
-                        setMessage(f, i, Lang.get("err_noTestData"), FileToTest.Status.unknown);
-                    else {
-                        Model model = new ModelCreator(circuit, library).createModel(false);
+                    if (testCases.isEmpty()) {
+                        // if no test data is available, at least check if the model is error free
+                        try {
+                            new ModelCreator(circuit, library).createModel(false);
+                            // if error free, issue a no test date message
+                            setMessage(f, i, Lang.get("err_noTestData"), FileToTest.Status.unknown);
+                        } catch (Exception e) {
+                            setMessage(f, i, Lang.get("msg_errorCreatingModel"), FileToTest.Status.error);
+                        }
+                    } else {
                         StringBuilder sb = new StringBuilder();
                         int rowCount = 0;
                         for (TestCase tc : testCases) {
+                            Model model = new ModelCreator(circuit, library).createModel(false);
                             try {
                                 TestExecutor te = new TestExecutor(tc.testData).create(model);
                                 if (te.allPassed()) {

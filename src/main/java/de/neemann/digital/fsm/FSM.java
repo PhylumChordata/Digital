@@ -7,7 +7,7 @@ package de.neemann.digital.fsm;
 
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.io.xml.PrettyPrintWriter;
-import com.thoughtworks.xstream.io.xml.StaxDriver;
+import de.neemann.digital.XStreamValid;
 import de.neemann.digital.analyse.TruthTable;
 import de.neemann.digital.analyse.expression.ExpressionException;
 import de.neemann.digital.draw.graphics.Graphic;
@@ -57,7 +57,7 @@ public class FSM {
      * @return the XStream instance
      */
     public static XStream getxStream() {
-        XStream xStream = new XStream(new StaxDriver());
+        XStream xStream = new XStreamValid();
         xStream.alias("fsm", FSM.class);
         xStream.alias("state", State.class);
         xStream.alias("transition", Transition.class);
@@ -185,6 +185,7 @@ public class FSM {
             state.setInitial(true);
         state.setFSM(this);
         states.add(state);
+        wasModified(state, Movable.Property.ADDED);
         return this;
     }
 
@@ -197,6 +198,7 @@ public class FSM {
     public FSM add(Transition transition) {
         transitions.add(transition);
         transition.setFSM(this);
+        wasModified(transition, Movable.Property.ADDED);
         return this;
     }
 
@@ -299,7 +301,7 @@ public class FSM {
      * @param dt     the time step
      * @param except element which is fixed
      */
-    public void move(int dt, Movable except) {
+    public void move(int dt, MouseMovable except) {
         if (state != MovingState.STOP) {
             calculateForces();
             if (state == MovingState.BOTH)
@@ -375,8 +377,12 @@ public class FSM {
      * @param pos the position
      * @return the element or null
      */
-    public Movable getMovable(Vector pos) {
-        Movable found = null;
+    public MouseMovable getMovable(Vector pos) {
+        for (State s : states)
+            if (s.matchesInitial(pos))
+                return s.getInitialMarkerMovable();
+
+        MouseMovable found = null;
         float dist = Float.MAX_VALUE;
         for (Transition t : transitions)
             if (t.matches(pos)) {
@@ -399,7 +405,6 @@ public class FSM {
                     found = s;
                 }
             }
-
         return found;
     }
 
@@ -437,7 +442,7 @@ public class FSM {
      * @param movable the element changed
      * @param prop    the property which has changed
      */
-    void wasModified(Movable movable, Movable.Property prop) {
+    void wasModified(Movable<?> movable, Movable.Property prop) {
         modified = true;
 
         if (movable instanceof State) {

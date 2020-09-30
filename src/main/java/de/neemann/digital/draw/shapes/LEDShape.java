@@ -5,7 +5,6 @@
  */
 package de.neemann.digital.draw.shapes;
 
-import de.neemann.digital.core.Observer;
 import de.neemann.digital.core.Value;
 import de.neemann.digital.core.element.ElementAttributes;
 import de.neemann.digital.core.element.Keys;
@@ -53,9 +52,8 @@ public class LEDShape implements Shape {
     }
 
     @Override
-    public Interactor applyStateMonitor(IOState ioState, Observer guiObserver) {
+    public Interactor applyStateMonitor(IOState ioState) {
         this.ioState = ioState;
-        ioState.getInput(0).addObserverToValue(guiObserver);
         return null;
     }
 
@@ -82,6 +80,6 @@ public class LEDShape implements Shape {
         if (fill)
             graphic.drawCircle(center.sub(rad), center.add(rad), onStyle);
         Vector textPos = new Vector(2 * size + OUT_SIZE, 0);
-        graphic.drawText(textPos, textPos.add(1, 0), label, Orientation.LEFTCENTER, Style.NORMAL);
+        graphic.drawText(textPos, label, Orientation.LEFTCENTER, Style.NORMAL);
     }
 }

@@ -5,10 +5,7 @@
  */
 package de.neemann.digital.testing;
 
-import de.neemann.digital.core.Model;
-import de.neemann.digital.core.NodeException;
-import de.neemann.digital.core.ObservableValue;
-import de.neemann.digital.core.Signal;
+import de.neemann.digital.core.*;
 import de.neemann.digital.core.wiring.Clock;
 import de.neemann.digital.data.Value;
 import de.neemann.digital.data.ValueTable;
@@ -31,11 +28,14 @@ public class TestExecutor {
     private final ArrayList<String> names;
     private final LineEmitter lines;
     private final ValueTable results;
-    private boolean allPassed;
+    private boolean errorOccurred;
+    private int failedCount;
+    private int passedCount;
     private boolean toManyResults = false;
     private ArrayList<TestSignal> inputs;
     private ArrayList<TestSignal> outputs;
     private int visibleRows;
+    private boolean allowMissingInputs;
 
     /**
      * Creates a new testing result
@@ -60,7 +60,6 @@ public class TestExecutor {
      * @throws ParserException      ParserException
      */
     public TestExecutor create(Model model) throws TestingDataException, NodeException, ParserException {
-        allPassed = true;
         HashSet<String> usedSignals = new HashSet<>();
 
         inputs = new ArrayList<>();
@@ -100,7 +99,10 @@ public class TestExecutor {
 
         for (String name : names)
             if (!usedSignals.contains(name))
-                throw new TestingDataException(Lang.get("err_testSignal_N_notFound", name));
+                if (allowMissingInputs)
+                    inputs.add(new TestSignal(getIndexOf(name), null));
+                else
+                    throw new TestingDataException(Lang.get("err_testSignal_N_notFound", name));
 
         if (inputs.size() == 0)
             throw new TestingDataException(Lang.get("err_noTestInputSignalsDefined"));
@@ -109,8 +111,12 @@ public class TestExecutor {
             throw new TestingDataException(Lang.get("err_noTestOutputSignalsDefined"));
 
         model.init();
+        model.addObserver(event -> {
+            if (event.getType() == ModelEventType.ERROR_OCCURRED)
+                errorOccurred = true;
+        }, ModelEventType.ERROR_OCCURRED);
 
-        lines.emitLines(new LineListenerResolveDontCare(values -> checkRow(model, values), inputs), new Context());
+        lines.emitLines(new LineListenerResolveDontCare(values -> checkRow(model, values), inputs), new Context().setModel(model));
 
         return this;
     }
@@ -129,7 +135,8 @@ public class TestExecutor {
         // set all values except the clocks
         for (TestSignal in : inputs) {
             if (values[in.index].getType() != Value.Type.CLOCK) {
-                values[in.index].copyTo(in.value);
+                if (in.value != null)
+                    values[in.index].copyTo(in.value);
             } else {
                 clockIsUsed = true;
             }
@@ -161,11 +168,8 @@ public class TestExecutor {
             }
 
             model.doStep();
-        } catch (NodeException e) {
-            allPassed = false;
-            throw new RuntimeException("", e);
         } catch (RuntimeException e) {
-            allPassed = false;
+            errorOccurred = true;
             throw e;
         }
 
@@ -173,11 +177,14 @@ public class TestExecutor {
         for (TestSignal out : outputs) {
             MatchedValue matchedValue = new MatchedValue(values[out.index], out.value);
             res[out.index] = matchedValue;
-            if (!matchedValue.isPassed()) {
-                allPassed = false;
+            if (!matchedValue.isPassed())
                 ok = false;
-            }
         }
+
+        if (ok)
+            passedCount++;
+        else
+            failedCount++;
 
         if (visibleRows < (ok ? MAX_RESULTS : ERR_RESULTS)) {
             visibleRows++;
@@ -202,9 +209,27 @@ public class TestExecutor {
      * @return true if all tests have passed
      */
     public boolean allPassed() {
-        return allPassed;
+        return !errorOccurred && failedCount == 0 && passedCount > 0;
     }
 
+    /**
+     * @return true if the test failed due to an error
+     */
+    public boolean isErrorOccurred() {
+        return errorOccurred;
+    }
+
+    /**
+     * @return the percentage of failed test rows
+     */
+    public int failedPercent() {
+        if (passedCount == 0)
+            return 100;
+        int p = 100 * failedCount / passedCount;
+        if (p == 0 && failedCount > 0)
+            p = 1;
+        return p;
+    }
 
     /**
      * Indicates if there are to many entries in the table to show.
@@ -233,6 +258,17 @@ public class TestExecutor {
      */
     public ValueTable getResult() {
         return results;
+    }
+
+    /**
+     * Allow missing inputs
+     *
+     * @param allowMissingInputs if true, missing inputs are allowed
+     * @return this for chained calls
+     */
+    public TestExecutor setAllowMissingInputs(boolean allowMissingInputs) {
+        this.allowMissingInputs = allowMissingInputs;
+        return this;
     }
 
     /**

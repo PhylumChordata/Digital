@@ -121,6 +121,9 @@ public class FSMFrame extends JFrame implements ClosingWindowListener.ConfirmSav
         createViewMenu(bar, toolBar);
         toolBar.addSeparator();
         createCreateMenu(bar, library);
+
+        bar.add(WindowManager.getInstance().registerAndCreateMenu(this));
+
         createHelpMenu(bar, toolBar);
         toolBar.addSeparator();
 
@@ -153,6 +156,7 @@ public class FSMFrame extends JFrame implements ClosingWindowListener.ConfirmSav
 
         setJMenuBar(bar);
 
+        pack();
         new WindowSizeStorage("fsm").setDefaultSize(600, 600).restore(this);
 
         setFSM(new FSM());
@@ -220,8 +224,7 @@ public class FSMFrame extends JFrame implements ClosingWindowListener.ConfirmSav
         }.setAcceleratorCTRLplus('S').setEnabledChain(false);
 
         JMenu export = new JMenu(Lang.get("menu_export"));
-        export.add(new ExportAction(Lang.get("menu_exportSVG"), "svg", GraphicSVGIndex::new));
-        export.add(new ExportAction(Lang.get("menu_exportSVGLaTex"), "svg", GraphicSVGLaTeX::new));
+        export.add(new ExportAction(Lang.get("menu_exportSVG"), "svg", GraphicSVG::new));
 
 
         JMenu file = new JMenu(Lang.get("menu_file"));
@@ -346,7 +349,7 @@ public class FSMFrame extends JFrame implements ClosingWindowListener.ConfirmSav
             public void actionPerformed(ActionEvent e) {
                 fsmComponent.scaleCircuit(1 / 0.9);
             }
-        }.setAccelerator("control PLUS");
+        }.setAcceleratorCTRLplus("PLUS");
         // enable [+] which is SHIFT+[=] on english keyboard layout
         fsmComponent.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS, KeyEvent.CTRL_DOWN_MASK, false), zoomIn);
         fsmComponent.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_ADD, KeyEvent.CTRL_DOWN_MASK, false), zoomIn);
@@ -357,7 +360,7 @@ public class FSMFrame extends JFrame implements ClosingWindowListener.ConfirmSav
             public void actionPerformed(ActionEvent e) {
                 fsmComponent.scaleCircuit(0.9);
             }
-        }.setAccelerator("control MINUS");
+        }.setAcceleratorCTRLplus("MINUS");
         // enable [+] which is SHIFT+[=] on english keyboard layout
         fsmComponent.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT, KeyEvent.CTRL_DOWN_MASK, false), zoomOut);
         fsmComponent.getActionMap().put(zoomOut, zoomOut);
@@ -456,9 +459,9 @@ public class FSMFrame extends JFrame implements ClosingWindowListener.ConfirmSav
                 value.addObserverToValue(() -> setActiveState(value.getValue()));
                 setActiveState(value.getValue());
                 model.addObserver(event -> {
-                            if (event == ModelEvent.STOPPED)
+                            if (event == ModelEvent.CLOSED)
                                 setActiveState(-1);
-                        }, ModelEvent.STOPPED
+                        }, ModelEventType.CLOSED
                 );
             }
         }
@@ -534,7 +537,11 @@ public class FSMFrame extends JFrame implements ClosingWindowListener.ConfirmSav
         ElementLibrary library = new ElementLibrary();
         new ShapeFactory(library);
 
-        new FSMFrame(null, library, null).setVisible(true);
+        File f = null;
+        if (args.length == 1)
+            f = new File(args[0]);
+
+        new FSMFrame(null, library, f).setVisible(true);
     }
 
 }

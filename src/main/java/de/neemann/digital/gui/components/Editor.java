@@ -36,9 +36,8 @@ public interface Editor<T> {
      * @param key               the key which is to edit
      * @param elementAttributes the attributes
      * @param dialog            the containing dialog
-     * @param constraints       the constraints used to place the components in the panel
      */
-    void addToPanel(JPanel panel, Key key, ElementAttributes elementAttributes, AttributeDialog dialog, ConstraintsBuilder constraints);
+    void addToPanel(EditorPanel panel, Key<T> key, ElementAttributes elementAttributes, AttributeDialog dialog);
 
     /**
      * Used to enable/disable the component.
@@ -48,11 +47,18 @@ public interface Editor<T> {
     void setEnabled(boolean enabled);
 
     /**
-     * Adds an ectionListener to the component
+     * Adds an actionListener to the component
      *
      * @param actionListener the actionListener to add
      */
     default void addActionListener(ActionListener actionListener) {
+    }
+
+    /**
+     * @return true if a major invisible change has been made that is unlikely to be lost.
+     */
+    default boolean invisibleModification() {
+        return false;
     }
 
     /**

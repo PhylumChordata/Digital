@@ -7,7 +7,6 @@ package de.neemann.digital.draw.shapes;
 
 import de.neemann.digital.core.IntFormat;
 import de.neemann.digital.core.ObservableValue;
-import de.neemann.digital.core.Observer;
 import de.neemann.digital.core.Value;
 import de.neemann.digital.core.element.ElementAttributes;
 import de.neemann.digital.core.element.Keys;
@@ -52,9 +51,8 @@ public class ProbeShape implements Shape {
     }
 
     @Override
-    public Interactor applyStateMonitor(IOState ioState, Observer guiObserver) {
+    public Interactor applyStateMonitor(IOState ioState) {
         inValue = ioState.getInput(0);
-        inValue.addObserverToValue(guiObserver);
         return null;
     }
 
@@ -69,14 +67,14 @@ public class ProbeShape implements Shape {
         int dy = -1;
         Orientation orientation = Orientation.LEFTCENTER;
         if (isLabel) {
-            graphic.drawText(new Vector(2, -4), new Vector(3, -4), label, Orientation.LEFTBOTTOM, Style.NORMAL);
+            graphic.drawText(new Vector(2, -4), label, Orientation.LEFTBOTTOM, Style.NORMAL);
             dy = 4;
             orientation = Orientation.LEFTTOP;
         }
         String v = "?";
         if (inValueCopy != null)
             v = format.formatToView(inValueCopy);
-        graphic.drawText(new Vector(2, dy), new Vector(3, dy), v, orientation, Style.NORMAL);
+        graphic.drawText(new Vector(2, dy), v, orientation, Style.NORMAL);
 
     }
 }

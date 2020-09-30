@@ -5,6 +5,7 @@
  */
 package de.neemann.digital.gui.components.terminal;
 
+import de.neemann.digital.core.SyncAccess;
 import de.neemann.digital.lang.Lang;
 
 import javax.swing.*;
@@ -23,11 +24,11 @@ public class KeyboardDialog extends JDialog implements Keyboard.KeyboardInterfac
     /**
      * Create a new Instance
      *
-     * @param owner             the owner frame
-     * @param keyboard          the keyboard node which has opened this dialog
-     * @param keyPressedHandler handler called every time a key is typed
+     * @param owner     the owner frame
+     * @param keyboard  the keyboard node which has opened this dialog
+     * @param modelSync used to access the model
      */
-    public KeyboardDialog(Frame owner, Keyboard keyboard, KeyPressedHandler keyPressedHandler) {
+    public KeyboardDialog(Frame owner, Keyboard keyboard, SyncAccess modelSync) {
         super(owner, Lang.get("elem_Keyboard") + " " + keyboard.getLabel(), false);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 
@@ -37,6 +38,7 @@ public class KeyboardDialog extends JDialog implements Keyboard.KeyboardInterfac
         text = "";
 
         textLabel.setFocusable(true);
+        textLabel.setFocusTraversalKeysEnabled(false);
         textLabel.addKeyListener(new KeyAdapter() {
             @Override
             public void keyTyped(KeyEvent e) {
@@ -45,7 +47,7 @@ public class KeyboardDialog extends JDialog implements Keyboard.KeyboardInterfac
                     text += e.getKeyChar();
                     t = text;
                 }
-                keyPressedHandler.keyPressed(keyboard);
+                modelSync.modify(keyboard::hasChanged);
                 textLabel.setText(t);
             }
         });
@@ -54,7 +56,7 @@ public class KeyboardDialog extends JDialog implements Keyboard.KeyboardInterfac
         setLocationRelativeTo(owner);
         setVisible(true);
 
-        keyboard.setKeyboardDialog(this);
+        keyboard.setKeyboard(this);
     }
 
     @Override
@@ -63,31 +65,19 @@ public class KeyboardDialog extends JDialog implements Keyboard.KeyboardInterfac
             if (text.length() == 0)
                 return 0;
             else {
-                final char c = text.charAt(0);
-                text = text.substring(1);
-                final String t = text;
-                SwingUtilities.invokeLater(() -> textLabel.setText(t));
-                return c;
+                return text.charAt(0);
             }
         }
     }
 
     @Override
-    public boolean isChar() {
+    public void deleteFirstChar() {
         synchronized (textLock) {
-            return text.length() > 0;
+            if (text.length() > 0) {
+                text = text.substring(1);
+                final String t = text;
+                SwingUtilities.invokeLater(() -> textLabel.setText(t));
+            }
         }
-    }
-
-    /**
-     * The handler called if a key is typed.
-     */
-    public interface KeyPressedHandler {
-        /**
-         * Called if a key is typed
-         *
-         * @param keyboard the keyboard used
-         */
-        void keyPressed(Keyboard keyboard);
     }
 }

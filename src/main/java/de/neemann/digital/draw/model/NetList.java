@@ -11,6 +11,7 @@ import de.neemann.digital.draw.graphics.Vector;
 import de.neemann.digital.lang.Lang;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 
 /**
@@ -31,24 +32,44 @@ public class NetList implements Iterable<Net> {
         for (Wire w : circuit.getWires())
             add(w);
 
+
+        // handles a direct pin overlap by adding a single point net
+        HashSet<Vector> allPinPositions = new HashSet<>();
+        HashSet<Vector> directConnection = new HashSet<>();
+        for (VisualElement ve : circuit.getElements())
+            for (Pin p : ve.getPins()) {
+                Vector v = p.getPos();
+                if (allPinPositions.contains(v))
+                    directConnection.add(v);
+                else
+                    allPinPositions.add(v);
+            }
+
+        for (Vector v : directConnection)
+            if (getNetOfPos(v) == null)
+                netList.add(new Net(v));
+
+
         boolean hasLabel = false;
         for (VisualElement ve : circuit.getElements())
             if (ve.equalsDescription(Tunnel.DESCRIPTION)) {
-                Vector pos = ve.getPos();
-                Net found = null;
-                for (Net n : netList)
-                    if (n.contains(pos))
-                        found = n;
-
                 String label = ve.getElementAttributes().get(Keys.NETNAME).trim();
-                if (found == null) {
-                    final PinException e = new PinException(Lang.get("err_labelNotConnectedToNet_N", label), ve);
-                    e.setOrigin(circuit.getOrigin());
-                    throw e;
-                }
+                if (!label.isEmpty()) {
+                    Vector pos = ve.getPos();
+                    Net found = null;
+                    for (Net n : netList)
+                        if (n.contains(pos))
+                            found = n;
 
-                found.addLabel(label);
-                hasLabel = true;
+                    if (found == null) {
+                        final PinException e = new PinException(Lang.get("err_labelNotConnectedToNet_N", label), ve);
+                        e.setOrigin(circuit.getOrigin());
+                        throw e;
+                    }
+
+                    found.addLabel(label);
+                    hasLabel = true;
+                }
             }
 
         if (hasLabel)

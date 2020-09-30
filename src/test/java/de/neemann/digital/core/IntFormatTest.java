@@ -86,4 +86,42 @@ public class IntFormatTest extends TestCase {
             assertTrue(format.name() + ":" + val + " != " + conv, val.isEqual(conv));
         }
     }
+
+    public void testStrLen() {
+        assertEquals(6,IntFormat.hex.strLen(16));
+        assertEquals(6,IntFormat.hex.strLen(15));
+        assertEquals(6,IntFormat.hex.strLen(14));
+        assertEquals(6,IntFormat.hex.strLen(13));
+        assertEquals(5,IntFormat.hex.strLen(12));
+
+        assertEquals(18,IntFormat.bin.strLen(16));
+        assertEquals(17,IntFormat.bin.strLen(15));
+        assertEquals(16,IntFormat.bin.strLen(14));
+
+        assertEquals(3,IntFormat.dec.strLen(8));
+        assertEquals(3,IntFormat.dec.strLen(9));
+        assertEquals(4,IntFormat.dec.strLen(10));
+        assertEquals(19, IntFormat.dec.strLen(60));
+        assertEquals(19, IntFormat.dec.strLen(61));
+        assertEquals(19, IntFormat.dec.strLen(62));
+        assertEquals(19, IntFormat.dec.strLen(63));
+        assertEquals(20, IntFormat.dec.strLen(64));
+
+        assertEquals(4,IntFormat.decSigned.strLen(8));
+        assertEquals(4,IntFormat.decSigned.strLen(9));
+        assertEquals(4,IntFormat.decSigned.strLen(10));
+        assertEquals(5,IntFormat.decSigned.strLen(11));
+        assertEquals(20, IntFormat.decSigned.strLen(62));
+        assertEquals(20, IntFormat.decSigned.strLen(63));
+        assertEquals(20, IntFormat.decSigned.strLen(64));
+
+        assertEquals(4,IntFormat.oct.strLen(4));
+        assertEquals(4,IntFormat.oct.strLen(5));
+        assertEquals(4,IntFormat.oct.strLen(6));
+        assertEquals(5,IntFormat.oct.strLen(7));
+        assertEquals(5,IntFormat.oct.strLen(8));
+        assertEquals(5,IntFormat.oct.strLen(9));
+        assertEquals(6,IntFormat.oct.strLen(10));
+
+    }
 }

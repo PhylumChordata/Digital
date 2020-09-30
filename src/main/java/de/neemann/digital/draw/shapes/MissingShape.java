@@ -5,7 +5,6 @@
  */
 package de.neemann.digital.draw.shapes;
 
-import de.neemann.digital.core.Observer;
 import de.neemann.digital.draw.elements.IOState;
 import de.neemann.digital.draw.elements.Pins;
 import de.neemann.digital.draw.graphics.Graphic;
@@ -40,14 +39,14 @@ public class MissingShape implements Shape {
     }
 
     @Override
-    public Interactor applyStateMonitor(IOState ioState, Observer guiObserver) {
+    public Interactor applyStateMonitor(IOState ioState) {
         return null;
     }
 
     @Override
     public void drawTo(Graphic graphic, Style highLight) {
         Style style = Style.NORMAL_TEXT;
-        graphic.drawText(new Vector(4, 4), new Vector(5, 4), message, Orientation.LEFTTOP, style);
+        graphic.drawText(new Vector(4, 4), message, Orientation.LEFTTOP, style);
         Throwable c = cause;
         int y = 4;
         while (c != null) {
@@ -56,7 +55,7 @@ public class MissingShape implements Shape {
                 if (message.length() > 100)
                     message = message.substring(0, 100) + "...";
                 y += style.getFontSize();
-                graphic.drawText(new Vector(4, y), new Vector(5, y), message, Orientation.LEFTTOP, style);
+                graphic.drawText(new Vector(4, y), message, Orientation.LEFTTOP, style);
             }
             c = c.getCause();
         }

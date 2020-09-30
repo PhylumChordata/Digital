@@ -5,12 +5,14 @@
  */
 package de.neemann.digital.core.memory.rom;
 
+import de.neemann.digital.core.IntFormat;
 import de.neemann.digital.core.memory.DataField;
+import de.neemann.digital.core.stats.Countable;
 
 /**
  * Interface implemented by al ROM or EEPROM components
  */
-public interface ROMInterface {
+public interface ROMInterface extends Countable {
     /**
      * Sets the data for this ROM element
      *
@@ -33,4 +35,8 @@ public interface ROMInterface {
      */
     int getAddrBits();
 
+    /**
+     * @return the integer format to be used to visualize the values
+     */
+    IntFormat getIntFormat();
 }

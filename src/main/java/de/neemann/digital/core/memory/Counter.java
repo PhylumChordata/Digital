@@ -14,7 +14,7 @@ import static de.neemann.digital.core.element.PinInfo.input;
 /**
  * A simple counter.
  */
-public class Counter extends Node implements Element {
+public class Counter extends Node implements Element, ProgramCounter {
 
     /**
      * The counters {@link ElementTypeDescription}
@@ -25,13 +25,16 @@ public class Counter extends Node implements Element {
             .addAttribute(Keys.BITS)
             .addAttribute(Keys.INVERTER_CONFIG)
             .addAttribute(Keys.LABEL)
-            .addAttribute(Keys.VALUE_IS_PROBE);
+            .addAttribute(Keys.VALUE_IS_PROBE)
+            .addAttribute(Keys.IS_PROGRAM_COUNTER)
+            .supportsHDL();
 
     private final ObservableValue out;
     private final ObservableValue ovf;
     private final long maxValue;
     private final boolean probe;
     private final String label;
+    private final boolean isProgramCounter;
     private ObservableValue clockIn;
     private ObservableValue clrIn;
     private ObservableValue enable;
@@ -49,9 +52,10 @@ public class Counter extends Node implements Element {
         int bits = attributes.getBits();
         this.out = new ObservableValue("out", bits).setPinDescription(DESCRIPTION);
         this.ovf = new ObservableValue("ovf", 1).setPinDescription(DESCRIPTION);
-        maxValue = (1L << bits) - 1;
+        maxValue = Bits.mask(bits);
         probe = attributes.get(Keys.VALUE_IS_PROBE);
         label = attributes.getLabel();
+        isProgramCounter = attributes.get(Keys.IS_PROGRAM_COUNTER);
     }
 
     @Override
@@ -92,7 +96,6 @@ public class Counter extends Node implements Element {
         return ovs(out, ovf);
     }
 
-
     @Override
     public void registerNodes(Model model) {
         super.registerNodes(model);
@@ -105,4 +108,13 @@ public class Counter extends Node implements Element {
             }));
     }
 
+    @Override
+    public boolean isProgramCounter() {
+        return isProgramCounter;
+    }
+
+    @Override
+    public long getProgramCounter() {
+        return counter;
+    }
 }

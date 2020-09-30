@@ -10,13 +10,14 @@ import de.neemann.digital.core.element.Element;
 import de.neemann.digital.core.element.ElementAttributes;
 import de.neemann.digital.core.element.ElementTypeDescription;
 import de.neemann.digital.core.element.Keys;
+import de.neemann.digital.core.stats.Countable;
 
 import static de.neemann.digital.core.element.PinInfo.input;
 
 /**
  * A simple register.
  */
-public class Register extends Node implements Element {
+public class Register extends Node implements Element, Countable, ProgramCounter {
 
     /**
      * The registers {@link ElementTypeDescription}
@@ -28,7 +29,8 @@ public class Register extends Node implements Element {
             .addAttribute(Keys.LABEL)
             .addAttribute(Keys.INVERTER_CONFIG)
             .addAttribute(Keys.IS_PROGRAM_COUNTER)
-            .addAttribute(Keys.VALUE_IS_PROBE);
+            .addAttribute(Keys.VALUE_IS_PROBE)
+            .supportsHDL();
 
     private final int bits;
     private final boolean isProbe;
@@ -91,17 +93,19 @@ public class Register extends Node implements Element {
             }));
     }
 
-    /**
-     * @return true if this register is the program counter
-     */
+    @Override
     public boolean isProgramCounter() {
         return isProgramCounter;
     }
 
-    /**
-     * @return the value of this register
-     */
-    public long getValue() {
+    @Override
+    public long getProgramCounter() {
         return value;
     }
+
+    @Override
+    public int getDataBits() {
+        return bits;
+    }
+
 }

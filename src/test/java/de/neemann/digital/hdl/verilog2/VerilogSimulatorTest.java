@@ -6,11 +6,8 @@
 package de.neemann.digital.hdl.verilog2;
 
 import de.neemann.digital.core.ExceptionWithOrigin;
-import de.neemann.digital.core.NodeException;
 import de.neemann.digital.core.element.Keys;
 import de.neemann.digital.core.extern.ProcessStarter;
-import de.neemann.digital.draw.elements.PinException;
-import de.neemann.digital.draw.library.ElementNotFoundException;
 import de.neemann.digital.gui.Settings;
 import de.neemann.digital.hdl.model2.HDLException;
 import de.neemann.digital.hdl.printer.CodePrinter;
@@ -42,20 +39,20 @@ public class VerilogSimulatorTest extends TestCase {
 
     /*
     public void testDebug() throws Exception {
-        File file = new File(Resources.getRoot(), "dig/test/vhdl/lut.dig");
+        File file = new File(Resources.getRoot(), "/dig/test/vhdl/pinControl/simple.dig");
 
         ToBreakRunner br = new ToBreakRunner(file);
         System.out.println(new VerilogGenerator(br.getLibrary(), new CodePrinterStr(true)).export(br.getCircuit()));
 
         checkVerilogExport(file);
-    }*/
+    }/**/
 
     public void testInSimulator() throws Exception {
         File examples = new File(Resources.getRoot(), "/dig/test/vhdl");
         try {
             int tested = new FileScanner(this::checkVerilogExport).noOutput().scan(examples);
-            assertEquals(41, tested);
-            assertEquals(tested+2, testBenches);
+            assertEquals(58, tested);
+            assertEquals(52, testBenches);
         } catch (FileScanner.SkipAllException e) {
             // if iverilog is not installed its also ok
         }
@@ -65,11 +62,26 @@ public class VerilogSimulatorTest extends TestCase {
         File examples = new File(Resources.getRoot(), "/dig/hdl");
         try {
             int tested = new FileScanner(this::checkVerilogExport).noOutput().scan(examples);
-            assertEquals(47, tested);
+            assertEquals(48, tested);
         } catch (FileScanner.SkipAllException e) {
             // if iverilog is not installed its also ok
         }
     }
+
+    public void testInSimulatorInOut() throws Exception {
+        File examples = new File(Resources.getRoot(), "/dig/test/pinControl");
+        try {
+            int tested = new FileScanner(f -> {
+                if (!f.getName().equals("uniTest.dig"))
+                    checkVerilogExport(f);
+            }).noOutput().scan(examples);
+            assertEquals(2, tested);
+            assertEquals(1, testBenches);
+        } catch (FileScanner.SkipAllException e) {
+            // if iverilog is not installed its also ok
+        }
+    }
+
 
     public void testDistributedInSimulator() throws Exception {
         File examples = new File(Resources.getRoot(), "../../main/dig/hdl");
@@ -122,16 +134,16 @@ public class VerilogSimulatorTest extends TestCase {
     }
 
 
-    private void checkVerilogExport(File file) throws PinException, NodeException, ElementNotFoundException, IOException, FileScanner.SkipAllException, HDLException {
+    private void checkVerilogExport(File file) throws Exception {
         ToBreakRunner br = new ToBreakRunner(file);
         File dir = Files.createTempDirectory("digital_verilog_" + getTime() + "_").toFile();
         try {
             File srcFile = new File(dir, file.getName()
                     .replace('.', '_')
-                    .replace('-', '_')+ ".v");
+                    .replace('-', '_') + ".v");
             CodePrinter out = new CodePrinter(srcFile);
             try (VerilogGenerator gen = new VerilogGenerator(br.getLibrary(), out)) {
-                gen.disableClockIntegration().export(br.getCircuit());
+                gen.export(br.getCircuit());
                 ArrayList<File> testFiles = gen.getTestBenches();
                 out.close();
                 runIVerilog(srcFile, testFiles);

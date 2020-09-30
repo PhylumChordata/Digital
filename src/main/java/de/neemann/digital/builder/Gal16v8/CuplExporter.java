@@ -9,15 +9,14 @@ import de.neemann.digital.analyse.expression.Expression;
 import de.neemann.digital.analyse.expression.ExpressionVisitor;
 import de.neemann.digital.analyse.expression.Variable;
 import de.neemann.digital.analyse.expression.format.FormatToExpression;
-import de.neemann.digital.analyse.expression.format.FormatterException;
 import de.neemann.digital.builder.*;
-import de.neemann.digital.builder.jedec.FuseMapFillerException;
 import de.neemann.digital.lang.Lang;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Collections;
@@ -35,6 +34,7 @@ public class CuplExporter implements ExpressionExporter<CuplExporter> {
     private final String username;
     private final Date date;
     private final BuilderCollector builder;
+    private final BuilderInterface cleanNameBuilder;
 
     private final PinMap pinMap;
     private final String devName;
@@ -84,7 +84,8 @@ public class CuplExporter implements ExpressionExporter<CuplExporter> {
         this.date = date;
         this.devName = devName;
         this.pinMap = pinMap;
-        builder = new CuplBuilder();
+        builder = new CuplBuilder(pinMap);
+        cleanNameBuilder = new CleanNameBuilder(builder);
     }
 
     /**
@@ -109,8 +110,8 @@ public class CuplExporter implements ExpressionExporter<CuplExporter> {
     }
 
     @Override
-    public BuilderCollector getBuilder() {
-        return builder;
+    public BuilderInterface getBuilder() {
+        return cleanNameBuilder;
     }
 
     @Override
@@ -119,16 +120,16 @@ public class CuplExporter implements ExpressionExporter<CuplExporter> {
     }
 
     @Override
-    public void writeTo(OutputStream out) throws FuseMapFillerException, IOException, PinMapException {
-        writeTo(new OutputStreamWriter(out, "ISO-8859-1"));
+    public void writeTo(OutputStream out) throws IOException, PinMapException {
+        writeTo(new OutputStreamWriter(out, StandardCharsets.ISO_8859_1));
     }
 
     /**
      * Writes code to given writer
      *
      * @param out the stream to write to
-     * @throws IOException            IOException
-     * @throws PinMapException        PinMapException
+     * @throws IOException     IOException
+     * @throws PinMapException PinMapException
      */
     public void writeTo(Writer out) throws IOException, PinMapException {
         out
@@ -166,27 +167,23 @@ public class CuplExporter implements ExpressionExporter<CuplExporter> {
             }
         }
 
-        try {
-            if (!builder.getRegistered().isEmpty()) {
-                out.append("\r\n/* sequential logic */\r\n");
-                for (Map.Entry<String, Expression> c : builder.getRegistered().entrySet()) {
-                    out.append(c.getKey()).append(".D = ");
-                    breakLines(out, FormatToExpression.FORMATTER_CUPL.format(c.getValue()));
-                    out.append(";\r\n");
-                    sequentialWritten(out, c.getKey());
-                }
+        if (!builder.getRegistered().isEmpty()) {
+            out.append("\r\n/* sequential logic */\r\n");
+            for (Map.Entry<String, Expression> c : builder.getRegistered().entrySet()) {
+                out.append(c.getKey()).append(".D = ");
+                breakLines(out, FormatToExpression.FORMATTER_CUPL.format(c.getValue()));
+                out.append(";\r\n");
+                sequentialWritten(out, c.getKey());
             }
+        }
 
-            if (!builder.getCombinatorial().isEmpty()) {
-                out.append("\r\n/* combinatorial logic */\r\n");
-                for (Map.Entry<String, Expression> c : builder.getCombinatorial().entrySet()) {
-                    out.append(c.getKey()).append(" = ");
-                    breakLines(out, FormatToExpression.FORMATTER_CUPL.format(c.getValue()));
-                    out.append(";\r\n");
-                }
+        if (!builder.getCombinatorial().isEmpty()) {
+            out.append("\r\n/* combinatorial logic */\r\n");
+            for (Map.Entry<String, Expression> c : builder.getCombinatorial().entrySet()) {
+                out.append(c.getKey()).append(" = ");
+                breakLines(out, FormatToExpression.FORMATTER_CUPL.format(c.getValue()));
+                out.append(";\r\n");
             }
-        } catch (FormatterException e) {
-            throw new IOException(e);
         }
 
         out.flush();
@@ -231,14 +228,15 @@ public class CuplExporter implements ExpressionExporter<CuplExporter> {
     protected void sequentialWritten(Writer out, String name) throws IOException {
     }
 
-    private final class CuplBuilder extends BuilderCollector {
+    private static final class CuplBuilder extends BuilderCollectorGAL {
         private final NotAllowedVariablesVisitor notAllowedVariablesVisitor = new NotAllowedVariablesVisitor();
+
+        private CuplBuilder(PinMap pinMap) {
+            super(pinMap);
+        }
 
         @Override
         public BuilderCollector addCombinatorial(String name, Expression expression) throws BuilderException {
-            if (pinMap.isSimpleAlias(name, expression))
-                return this;  // ignore simple variables!
-
             expression.traverse(notAllowedVariablesVisitor);
             notAllowedVariablesVisitor.check(name);
             return super.addCombinatorial(name, expression);

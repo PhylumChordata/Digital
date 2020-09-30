@@ -5,6 +5,9 @@
  */
 package de.neemann.digital.testing.parser;
 
+import de.neemann.digital.core.Model;
+import de.neemann.digital.core.ObservableValue;
+import de.neemann.digital.core.Signal;
 import de.neemann.digital.data.Value;
 import de.neemann.digital.testing.TestingDataException;
 import junit.framework.TestCase;
@@ -42,7 +45,7 @@ public class ParserTest extends TestCase {
         assertEquals(Value.Type.DONTCARE, td.getLines().get(2).getValue(1).getType());
     }
 
-    public void testHex() throws TestingDataException, IOException, ParserException {
+    public void testHex() throws IOException, ParserException {
         Parser parser = new Parser("A B\n0 0xff").parse();
         LineCollector td = new LineCollector(parser);
         assertEquals(2, td.getNames().size());
@@ -56,7 +59,7 @@ public class ParserTest extends TestCase {
         assertEquals(Value.Type.NORMAL, td.getLines().get(0).getValue(1).getType());
     }
 
-    public void testBin() throws TestingDataException, IOException, ParserException {
+    public void testBin() throws IOException, ParserException {
         Parser parser = new Parser("A B\n0 0b11111111").parse();
         LineCollector td = new LineCollector(parser);
         assertEquals(2, td.getNames().size());
@@ -70,7 +73,7 @@ public class ParserTest extends TestCase {
         assertEquals(Value.Type.NORMAL, td.getLines().get(0).getValue(1).getType());
     }
 
-    public void testMissingValue() throws IOException, ParserException {
+    public void testMissingValue() throws IOException {
         try {
             new Parser("A B\n0 0\n1").parse().getLines().emitLines(values -> {
             }, new Context());
@@ -189,6 +192,18 @@ public class ParserTest extends TestCase {
         LineCollector td = new LineCollector(parser);
         assertEquals(3, td.getNames().size());
         assertEquals(1, td.getLines().size());
+    }
+
+    public void test_modelInitState() throws IOException, ParserException {
+        Model model = new Model();
+        model.addSignal(new Signal("A", new ObservableValue("A", 3).setValue(2)));
+        model.addSignal(new Signal("B", new ObservableValue("B", 3).setValue(3)));
+        Parser parser = new Parser("A B Y\n" +
+                "let a=A+B;\n" +
+                "1 1 1\n#test").parse();
+        Context context = new Context().setModel(model);
+        LineCollector td = new LineCollector(parser, context);
+        assertEquals(5, context.getVar("a"));
     }
 
 }

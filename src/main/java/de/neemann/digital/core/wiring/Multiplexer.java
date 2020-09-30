@@ -41,7 +41,8 @@ public class Multiplexer extends FanIn {
             .addAttribute(Keys.ROTATE)
             .addAttribute(Keys.BITS)
             .addAttribute(Keys.SELECTOR_BITS)
-            .addAttribute(Keys.FLIP_SEL_POSITON);
+            .addAttribute(Keys.FLIP_SEL_POSITON)
+            .supportsHDL();
 
     /**
      * Creates a new instance
@@ -73,5 +74,10 @@ public class Multiplexer extends FanIn {
 
         if (in.size() != (1 << selectorBits))
             throw new BitsException(Lang.get("err_selectorInputCountMismatch"), this, -1, selector);
+    }
+
+    @Override
+    public int getAddrBits() {
+        return selectorBits;
     }
 }

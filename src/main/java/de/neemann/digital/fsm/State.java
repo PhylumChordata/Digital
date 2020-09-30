@@ -18,6 +18,8 @@ public class State extends Movable<State> {
      */
     static final int DEFAULT_RAD = 70;
 
+    private static final int INIT_RAD = 10;
+
     private static final int RASTER = 60;
     private static final float REACH = 2000;
 
@@ -25,6 +27,7 @@ public class State extends Movable<State> {
     private String name;
     private int radius;
     private boolean isInitial;
+    private int initialAngle = 12;
 
     /**
      * Creates a new state
@@ -91,23 +94,39 @@ public class State extends Movable<State> {
             if (getFsm().getActiveState() == number)
                 style = Style.HIGHLIGHT;
 
-        if (isInitial)
-            style = style.deriveStyle(style.getThickness() * 2, false, style.getColor());
-
         VectorInterface rad = new Vector(radius, radius);
         gr.drawCircle(getPos().sub(rad), getPos().add(rad), style);
+
+        if (isInitial) {
+            Vector initRad = new Vector(INIT_RAD, INIT_RAD);
+            VectorInterface pos = getInitialMarkerPos();
+            gr.drawCircle(pos.sub(initRad), pos.add(initRad), Style.FILLED);
+            VectorInterface delta = getPos().sub(pos).norm();
+            VectorInterface a0 = pos.add(delta.mul(INIT_RAD + Style.FILLED.getThickness()));
+            VectorInterface a1 = getPos().sub(delta.mul(radius + Style.FILLED.getThickness()));
+            Transition.drawArrow(gr, a0, null, null, a1);
+        }
 
         Vector delta = new Vector(0, Style.NORMAL.getFontSize());
         VectorFloat pos = getPos().add(delta.mul(-1));
 
-        gr.drawText(pos, pos.add(new Vector(1, 0)), Integer.toString(number), Orientation.CENTERCENTER, Style.NORMAL);
+        gr.drawText(pos, Integer.toString(number), Orientation.CENTERCENTER, Style.NORMAL);
         pos = pos.add(delta);
-        gr.drawText(pos, pos.add(new Vector(1, 0)), name, Orientation.CENTERCENTER, Style.NORMAL);
+        gr.drawText(pos, name, Orientation.CENTERCENTER, Style.NORMAL);
 
         if (getValues() != null && getValues().length() > 0) {
             pos = pos.add(delta);
-            gr.drawText(pos, pos.add(new Vector(1, 0)), getValues(), Orientation.CENTERCENTER, Style.INOUT);
+            gr.drawText(pos, getValues(), Orientation.CENTERCENTER, Style.INOUT);
         }
+    }
+
+    /**
+     * @return the initial marker position
+     */
+    VectorInterface getInitialMarkerPos() {
+        int r = radius + INIT_RAD * 6;
+        double angle = 2 * Math.PI / 32 * initialAngle;
+        return getPos().add(new VectorFloat((float) (Math.cos(angle) * r), -(float) (Math.sin(angle) * r)));
     }
 
     /**
@@ -164,6 +183,18 @@ public class State extends Movable<State> {
         return pos.sub(getPos()).len() <= radius;
     }
 
+    /**
+     * Returns true if the position matches the states initial marker
+     *
+     * @param pos the position
+     * @return true if pos inside of the states initial marker
+     */
+    public boolean matchesInitial(Vector pos) {
+        if (!isInitial)
+            return false;
+        return pos.sub(getInitialMarkerPos()).len() <= INIT_RAD;
+    }
+
     @Override
     public String toString() {
         if (name != null && name.length() > 0)
@@ -206,5 +237,34 @@ public class State extends Movable<State> {
             wasModified(Property.INITIAL);
         }
 
+    }
+
+    /**
+     * @return a movable that represents the initial marker.
+     */
+    public MouseMovable getInitialMarkerMovable() {
+        return new MouseMovable() {
+            @Override
+            public VectorInterface getPos() {
+                return getInitialMarkerPos();
+            }
+
+            @Override
+            public void setPosDragging(VectorFloat pos) {
+                VectorInterface delta = pos.sub(State.this.getPos());
+                double angle = Math.atan2(-delta.getYFloat(), delta.getXFloat()) / Math.PI * 16;
+                if (angle < 0)
+                    angle += 32;
+                int ia = (int) Math.round(angle);
+                if (initialAngle != ia) {
+                    initialAngle = ia;
+                    wasModified(Property.INITIAL_ANGLE);
+                }
+            }
+
+            @Override
+            public void setPos(VectorFloat pos) {
+            }
+        };
     }
 }

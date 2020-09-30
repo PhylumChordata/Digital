@@ -57,7 +57,7 @@ public class DataPlotter implements Drawable {
      * Fits the data in the visible area
      */
     public void fitInside() {
-        modelSync.access(() -> size = ((double) (width - textWidth)) / dataOriginal.getRows());
+        modelSync.modify(() -> size = ((double) (width - textWidth)) / dataOriginal.getRows());
         offset = 0;
         manualScaling = false;
     }
@@ -97,7 +97,7 @@ public class DataPlotter implements Drawable {
         if (staticData) {
             data = dataOriginal;
         } else {
-            data = modelSync.access(new Runnable() {
+            data = modelSync.read(new Runnable() {
                 private ValueTable data;
 
                 @Override
@@ -117,6 +117,11 @@ public class DataPlotter implements Drawable {
         if (scrollBar != null)
             scrollBar.setValues(offset, availDataWidth, 0, preferredDataWidth);
 
+        int dataAreaWidth = availDataWidth;
+        // if no width is given, plot all the data
+        if (width == 0)
+            dataAreaWidth = preferredDataWidth - offset;
+
         int yOffs = SIZE / 2;
         int y = BORDER;
         int signals = data.getColumns();
@@ -125,11 +130,11 @@ public class DataPlotter implements Drawable {
             textPos = textWidth - offset;
         for (int i = 0; i < signals; i++) {
             String text = data.getColumnName(i);
-            g.drawText(new Vector(textPos - 2, y + yOffs), new Vector(textPos + 1, y + yOffs), text, Orientation.RIGHTCENTER, Style.NORMAL);
-            g.drawLine(new Vector(textPos, y - SEP2), new Vector(textWidth + preferredDataWidth - offset, y - SEP2), Style.DASH);
+            g.drawText(new Vector(textPos - 2, y + yOffs), text, Orientation.RIGHTCENTER, Style.NORMAL);
+            g.drawLine(new Vector(textPos, y - SEP2), new Vector(textWidth + dataAreaWidth, y - SEP2), Style.DASH);
             y += SIZE + SEP;
         }
-        g.drawLine(new Vector(textPos, y - SEP2), new Vector(textWidth + preferredDataWidth - offset, y - SEP2), Style.DASH);
+        g.drawLine(new Vector(textPos, y - SEP2), new Vector(textWidth + dataAreaWidth, y - SEP2), Style.DASH);
 
 
         LastState[] last = new LastState[signals];
@@ -141,9 +146,11 @@ public class DataPlotter implements Drawable {
             int x1 = (int) (pos + textWidth - offset);
             int x2 = (int) (pos + textWidth - offset + size);
 
-            if (x2 > textWidth) {
+            if (x2 > textWidth && x1 < textWidth + dataAreaWidth) {
                 if (x1 < textWidth)
                     x1 = textWidth;
+                if (x2 > textWidth + dataAreaWidth)
+                    x2 = textWidth + dataAreaWidth;
 
                 g.drawLine(new Vector(x1, BORDER - SEP2), new Vector(x1, (SIZE + SEP) * signals + BORDER - SEP2), Style.DASH);
                 y = BORDER;
@@ -164,11 +171,11 @@ public class DataPlotter implements Drawable {
                     if (width == 0) width = 1;
                     long value = s.getValue(i).getValue();
                     int ry;
-                    if (Math.abs(width >>> 1) < Integer.MAX_VALUE) {
+                    long sWidth = (width >>> 32);
+                    if (sWidth == 0) {
                         ry = (int) (SIZE - (SIZE * value) / width);
                     } else {
-                        width = (width >>> 32);
-                        ry = (int) (SIZE - (SIZE * (value >>> 32)) / width);
+                        ry = (int) (SIZE - (SIZE * (value >>> 32)) / sWidth);
                     }
 
                     if (value != last[i].value)
@@ -178,9 +185,9 @@ public class DataPlotter implements Drawable {
                         final String text = IntFormat.toShortHex(value);
                         last[i].textWidth = text.length() * SIZE / 2;
                         if (ry > CENTER)
-                            g.drawText(new Vector(x1 + 1, y - SEP2 + 1), new Vector(x1 + 2, y - SEP2 + 1), text, Orientation.LEFTTOP, Style.SHAPE_PIN);
+                            g.drawText(new Vector(x1 + 1, y - SEP2 + 1), text, Orientation.LEFTTOP, Style.SHAPE_PIN);
                         else
-                            g.drawText(new Vector(x1 + 1, y + SIZE + SEP2 - 1), new Vector(x1 + 2, y + SIZE + SEP2 - 1), text, Orientation.LEFTBOTTOM, Style.SHAPE_PIN);
+                            g.drawText(new Vector(x1 + 1, y + SIZE + SEP2 - 1), text, Orientation.LEFTBOTTOM, Style.SHAPE_PIN);
                         last[i].hasChanged = false;
                     }
 
@@ -208,7 +215,7 @@ public class DataPlotter implements Drawable {
             pos += size;
 
         }
-        g.drawLine(new Vector((int) (pos + textWidth - offset), BORDER - SEP2), new Vector((int) (pos + textWidth - offset), (SIZE + SEP) * signals + BORDER - SEP2), Style.DASH);
+        g.drawLine(new Vector(textWidth + dataAreaWidth, BORDER - SEP2), new Vector(textWidth + dataAreaWidth, (SIZE + SEP) * signals + BORDER - SEP2), Style.DASH);
     }
 
     /**
@@ -222,7 +229,7 @@ public class DataPlotter implements Drawable {
      * @return the current width of the graphical representation
      */
     public int getCurrentGraphicWidth() {
-        return modelSync.access(new Runnable() {
+        return modelSync.read(new Runnable() {
             private int r;
 
             @Override

@@ -5,10 +5,12 @@
  */
 package de.neemann.digital.draw.graphics.text.formatter;
 
+import de.neemann.digital.analyse.expression.Expression;
+import de.neemann.digital.draw.graphics.text.text.ExpressionToText;
 import de.neemann.digital.draw.graphics.text.ParseException;
 import de.neemann.digital.draw.graphics.text.Parser;
-import de.neemann.digital.draw.graphics.text.text.*;
 import de.neemann.digital.draw.graphics.text.text.Character;
+import de.neemann.digital.draw.graphics.text.text.*;
 
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
@@ -40,6 +42,22 @@ public final class GraphicsFormatter {
     /**
      * Creates the text fragments
      *
+     * @param gr         the {@link Graphics2D} instance
+     * @param expression the expression
+     * @return the text fragment
+     * @throws FormatterException FormatterException
+     */
+    public static Fragment createFragment(Graphics2D gr, Expression expression) throws FormatterException {
+        return createFragment((fragment, font, str) -> {
+            final FontMetrics metrics = gr.getFontMetrics(font);
+            Rectangle2D rec = metrics.getStringBounds(str, gr);
+            fragment.set((int) rec.getWidth(), (int) rec.getHeight(), metrics.getDescent());
+        }, gr.getFont(), new ExpressionToText().createText(expression));
+    }
+
+    /**
+     * Creates the text fragments
+     *
      * @param sizer the sizer instance
      * @param font  the font
      * @param text  the text
@@ -54,7 +72,6 @@ public final class GraphicsFormatter {
             // if there was an exception, return the complete raw text as a fragment
             fragment = new TextFragment(sizer, font, text);
         }
-        fragment.dx += font.getSize() / 10;
         return fragment;
     }
 
@@ -75,17 +92,13 @@ public final class GraphicsFormatter {
         } else if (text instanceof Sentence) {
             Sentence s = (Sentence) text;
             SentenceFragment sf = new SentenceFragment();
-            int x = 0;
             for (Text t : s)
                 if (t instanceof Blank)
-                    x += font.getSize() / 2;
+                    sf.pad(font.getSize() / 2);
                 else {
                     final Fragment f = createFragment(sizer, font, t);
-                    f.x = x;
-                    x += f.dx;
                     sf.add(f);
                 }
-            sf.dx = x;
             return sf.setUp();
         } else if (text instanceof Index) {
             Index i = (Index) text;
@@ -111,7 +124,7 @@ public final class GraphicsFormatter {
     /**
      * Exception which indicates a formatter exception
      */
-    private static final class FormatterException extends Exception {
+    public static final class FormatterException extends Exception {
         FormatterException(String message) {
             super(message);
         }
@@ -199,7 +212,7 @@ public final class GraphicsFormatter {
         }
     }
 
-    private final static class SentenceFragment extends Fragment {
+    private static final class SentenceFragment extends Fragment {
 
         private ArrayList<Fragment> fragments;
 
@@ -209,6 +222,12 @@ public final class GraphicsFormatter {
 
         private void add(Fragment fragment) {
             fragments.add(fragment);
+            fragment.x = dx;
+            dx += fragment.dx;
+        }
+
+        private void pad(int p) {
+            dx += p;
         }
 
         @Override
@@ -291,6 +310,7 @@ public final class GraphicsFormatter {
     private final static class OverlineFragment extends Fragment {
         private final Fragment fragment;
         private final float fontSize;
+        private final int border;
         private int dx1;
         private int dx2;
 
@@ -298,7 +318,8 @@ public final class GraphicsFormatter {
             this.fragment = fragment;
             this.fontSize = font.getSize();
             this.dx = fragment.dx;
-            this.dy = fragment.dy;
+            border = (int) (fontSize / 5);
+            this.dy = fragment.dy + border;
             this.base = fragment.base;
             int indent = dx < fontSize / 2 ? 0 : (int) fontSize / 10;
             dx1 = indent;
@@ -313,7 +334,8 @@ public final class GraphicsFormatter {
         void drawDirect(Graphics2D gr, int xOfs, int yOfs) {
             super.drawDirect(gr, xOfs, yOfs);
             fragment.drawDirect(gr, xOfs + x, yOfs + y);
-            int yy = yOfs + y - dy + base;
+            int yy = yOfs + y - dy + base + border;
+            if (fontSize < 15) yy -= 1;
             gr.setStroke(new BasicStroke(fontSize / 10f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL));
             gr.drawLine(xOfs + x + dx1, yy, xOfs + x + dx - dx2, yy);
         }

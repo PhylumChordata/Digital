@@ -5,10 +5,7 @@
  */
 package de.neemann.digital.core.memory;
 
-import de.neemann.digital.core.Node;
-import de.neemann.digital.core.NodeException;
-import de.neemann.digital.core.ObservableValue;
-import de.neemann.digital.core.ObservableValues;
+import de.neemann.digital.core.*;
 import de.neemann.digital.core.element.Element;
 import de.neemann.digital.core.element.ElementAttributes;
 import de.neemann.digital.core.element.ElementTypeDescription;
@@ -34,16 +31,19 @@ public class EEPROM extends Node implements Element, RAMInterface, ROMInterface 
             .addAttribute(Keys.BITS)
             .addAttribute(Keys.ADDR_BITS)
             .addAttribute(Keys.LABEL)
+            .addAttribute(Keys.INT_FORMAT)
             .addAttribute(Keys.IS_PROGRAM_MEMORY)
             .addAttribute(Keys.INVERTER_CONFIG)
             .addAttribute(Keys.DATA);
 
     private final int bits;
     private final int addrBits;
+    private final ElementAttributes attr;
     private final int size;
     private final String label;
     private final ObservableValue dataOut;
     private final boolean isProgramMemory;
+    private final IntFormat intFormat;
     private DataField memory;
     private ObservableValue addrIn;
     private ObservableValue csIn;
@@ -65,6 +65,7 @@ public class EEPROM extends Node implements Element, RAMInterface, ROMInterface 
      */
     public EEPROM(ElementAttributes attr) {
         super(true);
+        this.attr = attr;
         bits = attr.get(Keys.BITS);
         addrBits = attr.get(Keys.ADDR_BITS);
         size = 1 << addrBits;
@@ -75,6 +76,15 @@ public class EEPROM extends Node implements Element, RAMInterface, ROMInterface 
                 .setPinDescription(DESCRIPTION)
                 .setBidirectional();
         isProgramMemory = attr.get(Keys.IS_PROGRAM_MEMORY);
+        intFormat = attr.get(Keys.INT_FORMAT);
+    }
+
+    @Override
+    public void registerNodes(Model model) {
+        super.registerNodes(model);
+
+        if (memory.isEmpty())
+            model.addObserver(event -> attr.set(Keys.DATA, memory), ModelEventType.CLOSED);
     }
 
     @Override
@@ -113,6 +123,11 @@ public class EEPROM extends Node implements Element, RAMInterface, ROMInterface 
         } else {
             dataOut.setToHighZ();
         }
+    }
+
+    @Override
+    public IntFormat getIntFormat() {
+        return intFormat;
     }
 
     @Override

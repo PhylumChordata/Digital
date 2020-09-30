@@ -7,6 +7,7 @@ package de.neemann.digital.hdl.vhdl2;
 
 import de.neemann.digital.core.Bits;
 import de.neemann.digital.core.wiring.Splitter;
+import de.neemann.digital.draw.library.ElementLibrary;
 import de.neemann.digital.hdl.hgs.HGSEvalException;
 import de.neemann.digital.hdl.model2.*;
 import de.neemann.digital.hdl.model2.expression.*;
@@ -35,9 +36,9 @@ public class VHDLCreator {
      *
      * @param out the output stream
      */
-    VHDLCreator(CodePrinter out) {
+    VHDLCreator(CodePrinter out, ElementLibrary lib) {
         this.out = out;
-        library = new VHDLLibrary();
+        library = new VHDLLibrary(lib);
         customPrinted = new HashSet<>();
     }
 
@@ -177,30 +178,38 @@ public class VHDLCreator {
 
         for (HDLPort i : circuit.getInputs()) {
             sep.check();
-            out.print(i.getName()).print(": in ").print(getType(i.getBits()));
+            out.print(i.getName()).print(": ").print(getDir(i.getDirection(), "in")).print(" ").print(getType(i.getBits()));
             if (i.hasDescription()) sep.setLineFinalizer(ou -> ou.printComment(" -- ", i.getDescription()));
         }
         for (HDLPort o : circuit.getOutputs()) {
             sep.check();
-            out.print(o.getName()).print(": out ").print(getType(o.getBits()));
+            out.print(o.getName()).print(": ").print(getDir(o.getDirection(), "out")).print(" ").print(getType(o.getBits()));
             if (o.hasDescription()) sep.setLineFinalizer(ou -> ou.printComment(" -- ", o.getDescription()));
         }
         sep.close();
         out.println(");").dec();
     }
 
+    private static String getDir(HDLPort.Direction direction, String def) {
+        if (direction == HDLPort.Direction.INOUT)
+            return "inout";
+        return def;
+    }
+
     private void printManyToOne(HDLNodeSplitterManyToOne node) throws IOException, HDLException {
         String target = node.getTargetSignal();
 
-        for (HDLNodeSplitterManyToOne.SplitterAssignment in : node) {
-            out.print(target).print("(");
-            if (in.getLsb() == in.getMsb())
-                out.print(in.getLsb());
-            else
-                out.print(in.getMsb()).print(" downto ").print(in.getLsb());
-            out.print(") <= ");
-            printExpression(in.getExpression());
-            out.println(";");
+        if (target != null) {
+            for (HDLNodeSplitterManyToOne.SplitterAssignment in : node) {
+                out.print(target).print("(");
+                if (in.getLsb() == in.getMsb())
+                    out.print(in.getLsb());
+                else
+                    out.print(in.getMsb()).print(" downto ").print(in.getLsb());
+                out.print(") <= ");
+                printExpression(in.getExpression());
+                out.println(";");
+            }
         }
     }
 
@@ -249,13 +258,20 @@ public class VHDLCreator {
                 sep.check();
                 out.print(o.getName()).print(" => ").print(o.getNet().getName());
             }
+        for (HDLPort o : node.getInOutputs())
+            if (o.getNet() != null) {
+                sep.check();
+                out.print(o.getName()).print(" => ").print(o.getNet().getName());
+            }
         out.println(");").dec().dec();
     }
 
     private void printExpression(HDLNodeAssignment node) throws IOException, HDLException {
-        out.print(node.getTargetNet().getName()).print(" <= ");
-        printExpression(node.getExpression());
-        out.println(";");
+        if (node.getTargetNet() != null) {
+            out.print(node.getTargetNet().getName()).print(" <= ");
+            printExpression(node.getExpression());
+            out.println(";");
+        }
     }
 
     private void printExpression(Expression expression) throws IOException, HDLException {

@@ -1,18 +1,19 @@
 [![Build Status](https://travis-ci.org/hneemann/Digital.svg?branch=master)](https://travis-ci.org/hneemann/Digital)
 [![codecov](https://codecov.io/gh/hneemann/Digital/branch/master/graph/badge.svg)](https://codecov.io/gh/hneemann/Digital)
+[![Download](distribution/Download.svg)](https://github.com/hneemann/Digital/releases/latest/download/Digital.zip)
 
 # Digital #
 
-Digital is a easy-to-use digital logic designer and circuit simulator designed for educational purposes.
+Digital is an easy-to-use digital logic designer and circuit simulator designed for educational purposes.
 
 ![screnshot](distribution/screenshot.png)
 
 ![screnshot2](distribution/screenshot2.png)
 
-## Installation ##
+## [Download](https://github.com/hneemann/Digital/releases/latest/download/Digital.zip) and Installation ##
 
 There is no installation required, just unpack the *Digital.zip* file, which is
-available for [download](https://github.com/hneemann/Digital/releases/latest).
+available for [download](https://github.com/hneemann/Digital/releases/latest/download/Digital.zip).
 On Windows machines the EXE file can be executed, on Linux start the shell script
 and on MacOS the JAR file can be started directly.
 A [Java Runtime Environment](https://www.java.com/) (at least JRE 8) is required
@@ -36,7 +37,9 @@ These are the main features of Digital:
 - Many examples: From a transmission gate D-flip-flop to a complete (simple) MIPS-like single cycle CPU.
 - Includes a simple editor for finite state machines (FSM). A FSM can then be converted to a state
   transition table and a circuit implementing the FSM (See screenshot at the [bottom](#additional-screenshots)).
-- Contains a library with the most commonly used 74xx series integrated circuits. 
+- Contains a library with the most commonly used 74xx series integrated circuits.
+- Supports generic circuits. This allows the creation of circuits that can be parameterized when used. 
+  In this way, it is possible, for e.g., to create a barrel shifter with a selectable bit width.
 - Good performance: The example processor can be clocked at 120 kHz.
 - Supports large circuits: The "Conway's Game of Life" example consists of about 2400 active components
   and works just fine.
@@ -47,10 +50,9 @@ These are the main features of Digital:
 - Components can be described using VHDL or Verilog. The open source VHDL simulator [ghdl](http://ghdl.free.fr/)
   needs to be installed to simulate a VHDL defined component, and the open source Verilog simulator
   [Icarus Verilog](http://iverilog.icarus.com/) is required to simulate a Verilog defined component.
-- A circuit can be exported to VHDL or Verilog. There is also support for the
-  [BASYS3 Board](https://reference.digilentinc.com/reference/programmable-logic/basys-3/start), the
-  [Mimas](https://numato.com/product/mimas-spartan-6-fpga-development-board) and the
-  [Mimas V2](https://numato.com/product/mimas-v2-spartan-6-fpga-development-board-with-ddr-sdram) boards.
+- A circuit can be exported to VHDL or Verilog. There is also direct support for the
+  [BASYS3 Board](https://reference.digilentinc.com/reference/programmable-logic/basys-3/start) and the 
+  [TinyFPGA BX](https://tinyfpga.com/) board.
   See the documentation for details.
   The examples folder contains a variant of the example CPU, which runs on a BASYS3 board.
 - Direct export of JEDEC files which you can flash to a [GAL16v8](https://www.microchip.com/wwwproducts/en/ATF16V8C)
@@ -62,22 +64,27 @@ These are the main features of Digital:
 - SVG export of circuits, including a LaTeX/Inkscape compatible SVG version (see 
   [ctan](https://www.ctan.org/tex-archive/info/svg-inkscape))
 - No legacy code.
-- Good test coverage (about 80%; The GUI tests are not running on the headless
+- Good test coverage (about 80%; Neither the GUI tests nor the HDL simulator integration tests are running on the 
   Travis-CI build servers, so CodeCov measures only about 50%).
   Almost all examples contain test cases which ensure that they work correctly.
 
 The latest changes that have not yet been released are listed in the
 [release notes](distribution/ReleaseNotes.txt).
+You can find the latest pre-release builds [here](https://infdigital.dhbw-mosbach.de/). 
+In the pre release builds the automated GUI tests are usually not executed. 
+All other tests, including the HDL tests, were executed without errors.
 
 ## Documentation ##
 
-The [documentation](https://github.com/hneemann/Digital/releases/latest) is available in English, German and Portuguese.
+The [documentation](https://github.com/hneemann/Digital/releases/latest) is available in English, 
+German, Spanish, Portuguese and simplified Chinese.
 It is still very incomplete but it contains a chapter "First Steps" which explains the basic usage of Digital.
 The documentation also contains a list of available 74xx chips and a list of available keyboard shortcuts. 
 
 ## Translations ##
 
-So far Digital is available in English, German and Portuguese. If someone wants to add a 
+So far Digital is available in English, German, Spanish, Portuguese and simplified Chinese. 
+If someone wants to add a 
 new translation, please let me [know](mailto:digital-simulator@web.de).
 I can provide you with a special file for translation. This file is much easier to 
 translate than the [files](https://github.com/hneemann/Digital/blob/master/src/main/resources/lang) 
@@ -103,7 +110,7 @@ If you are familiar with Logisim you will recognize the wire color scheme.
 Logisim is a excellent and proven tool for teaching purposes, that has been actively developed until 2011. 
 In 2013 Carl Burch has started the development of a new simulator called [Toves](http://www.toves.org/). 
 In his [blog](http://www.toves.org/blog/) he explained why he decided to develop a new simulator instead of improving Logisim. 
-In short: There are weaknesses in Logisims architecture which are too difficult to overcome.
+In short: In his opinion, there are weaknesses in Logisim's architecture that are too difficult to overcome. 
 Unfortunately, the development of Toves was discontinued at a very early stage.
 
 In 2014, Carl Burch finally [discontinued](http://www.cburch.com/logisim/retire-note.html) the development of
@@ -118,9 +125,9 @@ Logisim. Since Logisim was released as open source, there are a number of forks 
 
 But as far as I know, these projects do not work on solving the architectural difficulties. 
 They are more about adding features and fixing bugs. In [Logisim-Evolution](https://github.com/reds-heig/logisim-evolution), 
-for example, a VHDL/Verilog export was added.
+for example, a VHDL/Verilog export and a really nice FPGA board integration was added.
 
-So I also decided to implement a new simulator completely from scratch and started the implementation of Digital in march 2016.
+So I also decided to implement a new simulator completely from scratch and started the implementation of Digital in March 2016.
 In the meantime a development level has been reached which is comparable to Logisim.
 In some areas (performance, testing of circuits, circuit analysis, hardware support) Logisim has already been exceeded.
 
@@ -213,7 +220,7 @@ assembly program executed by a simulated processor.
 ### Circuit Synthesis ###
 
 Logisim is able to generate combinatorial circuits from a truth table and vice versa. In Digital, this is also possible.
-In addition, also a sequential circuit can be generated from an appropriate state transition table.
+In addition, a sequential circuit can be generated from an appropriate state transition table.
 You can specify both the transition circuit and the output circuit. The minimization of the expressions is done
 by the method of Quine and McCluskey.
 The truth table also can derived from a circuit which contains simple combinatorial logic,
@@ -221,16 +228,17 @@ D flip-flops or JK flip-flops, including the generation of the state transition 
 Note, however, that a flip-flop build of combinatorial gates is not recognized as such.
 The analysis of sequential circuits only works with purely combinatorial
 logic combined with the build-in D or JK flip-flops.
-After you have created the truth table or state transition table you can create a JEDEC file for a 
+Once a truth table or state transition table has been created, a JEDEC file can be exported for a 
 [GAL16v8](http://www.atmel.com/devices/ATF16V8C.aspx) or a [GAL22v10](http://www.atmel.com/devices/ATF22V10C.aspx).
-After that you can simply flash this file to the appropriate GAL and test the circuit on a bred board.
+After that, this file can be flashed onto a appropriate GAL.
 As mentioned above these GALs are quite old but with 8/10 macro-cells sufficient for beginners exercises.
-If more macro-cells are required, see the PDF documentation that is included in the distribution for details 
-on how to set up Digital to support the [ATF1502](http://www.microchip.com/wwwproducts/en/ATF1502AS) and
-[ATF1504](http://www.microchip.com/wwwproducts/en/ATF1504AS) which offer 32/64 macro-cells and In System Programming.
+If more macro-cells are required, see the PDF documentation for details on how to set up Digital to support the 
+[ATF1502](http://www.microchip.com/wwwproducts/en/ATF1502AS) and
+[ATF1504](http://www.microchip.com/wwwproducts/en/ATF1504AS) CPLDs which offer 32/64 macro-cells and In System Programming.
 It is also possible to export a circuit to VHDL or Verilog to run it on an FPGA.
-But the HDL synthesis is a bit time-consuming and in my opinion slows down the workflow in a
-lab exercise too much, especially if only very simple circuits are used.
+But the necessary HDL synthesis is sometimes a bit time-consuming and in my experience slows down the workflow in a 
+lab exercise too much, especially if only simple circuits are required and the students change the circuit 
+over and over again.
 
 ## How do I get set up? ##
 
@@ -263,6 +271,7 @@ Many thanks to the following persons for their help:
   has provided the Portuguese translation.
 * Ángel Millán from the Instituto de Educación Secundaria Ies Virgen de Villadiego in Peñaflor (Sevilla), Spain
   has provided the Spanish translation.
+* XinJun Ma ([@itviewer](https://github.com/itviewer)) has provided the Chinese translation.
 
 ## Additional Screenshots
 

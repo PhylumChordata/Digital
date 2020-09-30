@@ -5,13 +5,16 @@
  */
 package de.neemann.digital.core.memory;
 
-import de.neemann.digital.core.memory.importer.DataFieldValueArray;
 import de.neemann.digital.core.memory.importer.LogisimReader;
 import de.neemann.digital.core.memory.importer.ValueArray;
 import junit.framework.TestCase;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.StringReader;
+import java.io.StringWriter;
 import java.util.Arrays;
+
+import static org.junit.Assert.assertNotEquals;
 
 /**
  *
@@ -62,7 +65,7 @@ public class DataFieldTest extends TestCase {
                 "7\n" +
                 "8\n" +
                 "9\n" +
-                "a\n", w.toString());
+                "a\n", w.toString().replace("\r", ""));
     }
 
     public void testSaveEmpty() throws IOException {
@@ -71,7 +74,7 @@ public class DataFieldTest extends TestCase {
         StringWriter w = new StringWriter();
         data.saveTo(w);
 
-        assertEquals("v2.0 raw\n", w.toString());
+        assertEquals("v2.0 raw\n", w.toString().replace("\r", ""));
     }
 
     public void testSaveRLE() throws IOException {
@@ -97,7 +100,7 @@ public class DataFieldTest extends TestCase {
                 "7*6\n" +
                 "8*7\n" +
                 "9*8\n" +
-                "10*9\n", w.toString());
+                "10*9\n", w.toString().replace("\r", ""));
 
         DataField readData = new DataField(100);
         LogisimReader r = new LogisimReader(new StringReader(w.toString()));
@@ -150,6 +153,28 @@ public class DataFieldTest extends TestCase {
         readData.trim();
 
         assertTrue(Arrays.equals(data.getData(), readData.getData()));
+    }
+
+    public void testTrimValues() {
+        DataField df = new DataField(100);
+        df.setData(99, 0xffff);
+        df.setData(9, 0xffff);
+        df.trimValues(4, 6);
+        assertEquals(10, df.getData().length);
+        assertEquals(0x3f, df.getDataWord(9));
+    }
+
+    public void testEquals() {
+        DataField df1 = new DataField(10);
+        df1.setData(9, 0xffff);
+        DataField df2 = new DataField(10);
+        df2.setData(9, 0xffff);
+        DataField df3 = new DataField(10);
+        assertEquals(df1, df2);
+        assertEquals(df2, df1);
+
+        assertNotEquals(df3, df1);
+        assertNotEquals(df3, df2);
     }
 
 }

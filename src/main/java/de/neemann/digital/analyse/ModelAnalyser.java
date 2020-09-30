@@ -8,14 +8,10 @@ package de.neemann.digital.analyse;
 import de.neemann.digital.analyse.expression.BitSetter;
 import de.neemann.digital.analyse.quinemc.BoolTableByteArray;
 import de.neemann.digital.core.*;
-import de.neemann.digital.core.basic.And;
-import de.neemann.digital.core.basic.Not;
-import de.neemann.digital.core.basic.Or;
-import de.neemann.digital.core.element.ElementAttributes;
 import de.neemann.digital.core.flipflops.FlipflopD;
-import de.neemann.digital.core.flipflops.FlipflopJK;
-import de.neemann.digital.core.flipflops.FlipflopT;
-import de.neemann.digital.core.switching.*;
+import de.neemann.digital.core.switching.NFET;
+import de.neemann.digital.core.switching.Relay;
+import de.neemann.digital.core.switching.RelayDT;
 import de.neemann.digital.core.wiring.Clock;
 import de.neemann.digital.core.wiring.Splitter;
 import de.neemann.digital.draw.elements.PinException;
@@ -49,13 +45,6 @@ public class ModelAnalyser {
     public ModelAnalyser(Model model) throws AnalyseException {
         this.model = model;
 
-        try {
-            replaceTFF();
-            replaceJKFF();
-        } catch (NodeException e) {
-            throw new AnalyseException(e);
-        }
-
         modelAnalyzerInfo = new ModelAnalyserInfo(model);
 
         inputs = checkBinaryInputs(model.getInputs());
@@ -73,13 +62,15 @@ public class ModelAnalyser {
         flipflops = replaceMultiBitFlipflops(flipflops);
         for (FlipflopD ff : flipflops) {
             checkClock(ff);
-            if (ff.getBits() != 1)
+            if (ff.getDataBits() != 1)
                 throw new AnalyseException(Lang.get("err_MultiBitFlipFlopFound"));
 
             ff.getDInput().removeObserver(ff); // turn off flipflop
             String label = getUniqueNameFor(ff);
 
-            outputs.add(i++, new Signal(label + "+1", ff.getDInput()));
+            outputs.add(i++, new Signal(addOne(label), ff.getDInput()));
+
+            modelAnalyzerInfo.setSequentialInitValue(label, ff.getDefault());
 
             ObservableValue q = ff.getOutputs().get(0);
             final Signal sig = new Signal(label, q);
@@ -102,13 +93,27 @@ public class ModelAnalyser {
             throw new AnalyseException(Lang.get("err_analyseNoOutputs"));
     }
 
+    /**
+     * Adds the "+1" to the variables name
+     *
+     * @param name the vars name
+     * @return the modified name
+     */
+    public static String addOne(String name) {
+        if (name.endsWith("^n"))
+            return name.substring(0, name.length() - 1) + "{n+1}";
+        else
+            return name + "+1";
+    }
+
+
     private String getUniqueNameFor(FlipflopD ff) {
         String label = ff.getLabel();
         if (label.length() == 0)
             label = createOutputBasedName(ff);
 
         if (!label.endsWith("n"))
-            label += "n";
+            label += "^n";
 
         return new LabelNumbering(label).create(this::inputExist);
     }
@@ -150,14 +155,17 @@ public class ModelAnalyser {
                     SplitPinString pins = SplitPinString.create(s);
 
                     final ObservableValues spOutputs = sp.getOutputs();
+                    String name = s.getName();
+                    if (!name.contains("_"))
+                        name += "_";
                     for (int i = spOutputs.size() - 1; i >= 0; i--)
-                        outputs.add(new Signal(s.getName() + i, spOutputs.get(i)).setPinNumber(pins.getPin(i)));
+                        outputs.add(new Signal(name + i, spOutputs.get(i)).setPinNumber(pins.getPin(i)));
 
                     s.getValue().fireHasChanged();
 
                     ArrayList<String> names = new ArrayList<>(bits);
                     for (int i = 0; i < bits; i++)
-                        names.add(s.getName() + i);
+                        names.add(name + i);
 
                     modelAnalyzerInfo.addOutputBus(s.getName(), names);
 
@@ -172,39 +180,48 @@ public class ModelAnalyser {
     private ArrayList<Signal> checkBinaryInputs(ArrayList<Signal> list) throws AnalyseException {
         ArrayList<Signal> inputs = new ArrayList<>();
         for (Signal s : list) {
-            final int bits = s.getValue().getBits();
-            if (bits == 1)
-                inputs.add(s);
-            else {
-                try {
-                    Splitter sp = Splitter.createNToOne(bits);
-                    final ObservableValue out = sp.getOutputs().get(0);
-                    out.addObserver(new NodeWithoutDelay(s.getValue()) {
-                        @Override
-                        public void hasChanged() {
-                            s.getValue().setValue(out.getValue());
+            if (!ignoreSignal(s)) {
+                final int bits = s.getValue().getBits();
+                if (bits == 1)
+                    inputs.add(s);
+                else {
+                    try {
+                        Splitter sp = Splitter.createNToOne(bits);
+                        final ObservableValue out = sp.getOutputs().get(0);
+                        out.addObserver(new NodeWithoutDelay(s.getValue()) {
+                            @Override
+                            public void hasChanged() {
+                                s.getValue().setValue(out.getValue());
+                            }
+                        });
+                        out.fireHasChanged();
+
+                        SplitPinString pins = SplitPinString.create(s);
+                        ObservableValues.Builder builder = new ObservableValues.Builder();
+                        String name = s.getName();
+                        if (!name.contains("_"))
+                            name += "_";
+                        for (int i = bits - 1; i >= 0; i--) {
+                            ObservableValue o = new ObservableValue(name + i, 1);
+                            builder.add(o);
+                            inputs.add(new Signal(name + i, o).setPinNumber(pins.getPin(i)));
                         }
-                    });
-                    out.fireHasChanged();
+                        final ObservableValues inputsList = builder.reverse().build();
+                        sp.setInputs(inputsList);
 
-                    SplitPinString pins = SplitPinString.create(s);
-                    ObservableValues.Builder builder = new ObservableValues.Builder();
-                    for (int i = bits - 1; i >= 0; i--) {
-                        ObservableValue o = new ObservableValue(s.getName() + i, 1);
-                        builder.add(o);
-                        inputs.add(new Signal(s.getName() + i, o).setPinNumber(pins.getPin(i)));
+                        modelAnalyzerInfo.addInputBus(s.getName(), inputsList.getNames());
+
+                    } catch (NodeException e) {
+                        throw new AnalyseException(e);
                     }
-                    final ObservableValues inputsList = builder.reverse().build();
-                    sp.setInputs(inputsList);
-
-                    modelAnalyzerInfo.addInputBus(s.getName(), inputsList.getNames());
-
-                } catch (NodeException e) {
-                    throw new AnalyseException(e);
                 }
             }
         }
         return inputs;
+    }
+
+    private boolean ignoreSignal(Signal s) {
+        return s.getName().equals("VCC") || s.getName().equals("GND");
     }
 
     private void checkClock(Node node) throws AnalyseException {
@@ -222,7 +239,7 @@ public class ModelAnalyser {
     private List<FlipflopD> replaceMultiBitFlipflops(List<FlipflopD> flipflops) throws AnalyseException {
         ArrayList<FlipflopD> out = new ArrayList<>();
         for (FlipflopD ff : flipflops) {
-            if (ff.getBits() == 1)
+            if (ff.getDataBits() == 1)
                 out.add(ff);
             else {
                 try {
@@ -230,20 +247,23 @@ public class ModelAnalyser {
                     ff.getDInput().removeObserver(ff);
                     ff.getClock().removeObserver(ff);
 
-                    Splitter insp = Splitter.createOneToN(ff.getBits());
+                    Splitter insp = Splitter.createOneToN(ff.getDataBits());
                     insp.setInputs(new ObservableValues(ff.getDInput()));
                     ff.getDInput().fireHasChanged();
 
-                    Splitter outsp = Splitter.createNToOne(ff.getBits());
+                    Splitter outsp = Splitter.createNToOne(ff.getDataBits());
 
                     ObservableValues.Builder spinput = new ObservableValues.Builder();
                     String label = ff.getLabel();
                     if (label.length() == 0)
                         label = createOutputBasedName(ff);
-                    for (int i = ff.getBits() - 1; i >= 0; i--) {
+                    if (!label.contains("_"))
+                        label = label + "_";
+                    long def = ff.getDefault();
+                    for (int i = ff.getDataBits() - 1; i >= 0; i--) {
                         ObservableValue qn = new ObservableValue("", 1);
                         ObservableValue nqn = new ObservableValue("", 1);
-                        FlipflopD newff = new FlipflopD(label + i, qn, nqn);
+                        FlipflopD newff = new FlipflopD(label + i, qn, nqn, (def & (1L << i)) != 0 ? 1 : 0);
                         spinput.addAtTop(qn);
                         model.add(newff);
                         newff.setInputs(new ObservableValues(insp.getOutputs().get(i), getClock()));
@@ -272,66 +292,6 @@ public class ModelAnalyser {
             }
         }
         return out;
-    }
-
-    private void replaceJKFF() throws NodeException, AnalyseException {
-        List<FlipflopJK> jkList = model.findNode(FlipflopJK.class);
-
-        for (FlipflopJK jk : jkList) {
-            checkClock(jk);
-
-            jk.getClockVal().removeObserver(jk);
-            jk.getjVal().removeObserver(jk);
-            jk.getkVal().removeObserver(jk);
-
-            // create d ff
-            ObservableValue q = jk.getOutputs().get(0);
-            ObservableValue qn = jk.getOutputs().get(1);
-            FlipflopD d = new FlipflopD(jk.getLabel(), q, qn);
-
-            And a1 = new And(new ElementAttributes());
-            a1.setInputs(new ObservableValues(jk.getjVal(), qn));
-            And a2 = new And(new ElementAttributes());
-            Not nk = new Not(new ElementAttributes());
-            nk.setInputs(jk.getkVal().asList());
-            a2.setInputs(new ObservableValues(nk.getOutput(), q));
-
-            Or or = new Or(new ElementAttributes());
-            or.setInputs(new ObservableValues(a1.getOutput(), a2.getOutput()));
-
-            d.setInputs(new ObservableValues(or.getOutputs().get(0), jk.getClockVal()));
-
-            model.add(a1);
-            model.add(a2);
-            model.add(nk);
-            model.add(or);
-            model.replace(jk, d);
-        }
-    }
-
-    private void replaceTFF() throws NodeException, AnalyseException {
-        List<FlipflopT> tList = model.findNode(FlipflopT.class);
-
-        for (FlipflopT tff : tList) {
-            checkClock(tff);
-            tff.getClockVal().removeObserver(tff);
-            ObservableValue q = tff.getOutputs().get(0);
-            ObservableValue qn = tff.getOutputs().get(1);
-
-            ObservableValue enable = tff.getEnableVal();
-            if (enable == null) {
-                // create d ff
-                FlipflopD d = new FlipflopD(tff.getLabel(), q, qn);
-                d.setInputs(new ObservableValues(qn, getClock()));
-                model.replace(tff, d);
-            } else {
-                // create jk ff
-                enable.removeObserver(tff);
-                FlipflopJK jk = new FlipflopJK(tff.getLabel(), q, qn);
-                jk.setInputs(new ObservableValues(enable, getClock(), enable));
-                model.replace(tff, jk);
-            }
-        }
     }
 
     /**

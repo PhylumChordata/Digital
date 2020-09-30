@@ -7,8 +7,6 @@ package de.neemann.digital.gui.components;
 
 import de.neemann.digital.analyse.expression.format.FormatToExpression;
 import de.neemann.digital.core.*;
-import de.neemann.digital.core.arithmetic.BarrelShifterMode;
-import de.neemann.digital.core.arithmetic.LeftRightFormat;
 import de.neemann.digital.core.element.*;
 import de.neemann.digital.core.extern.Application;
 import de.neemann.digital.core.extern.PortDefinition;
@@ -20,11 +18,10 @@ import de.neemann.digital.core.memory.importer.Importer;
 import de.neemann.digital.core.memory.rom.ROMManger;
 import de.neemann.digital.draw.elements.PinException;
 import de.neemann.digital.draw.elements.VisualElement;
-import de.neemann.digital.draw.graphics.Orientation;
+import de.neemann.digital.draw.graphics.ColorScheme;
 import de.neemann.digital.draw.library.ElementNotFoundException;
 import de.neemann.digital.draw.model.InverterConfig;
 import de.neemann.digital.draw.model.ModelCreator;
-import de.neemann.digital.draw.shapes.CustomCircuitShapeType;
 import de.neemann.digital.draw.shapes.custom.CustomShapeDescription;
 import de.neemann.digital.gui.Main;
 import de.neemann.digital.gui.SaveAsHelper;
@@ -47,18 +44,19 @@ import java.io.*;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 
 /**
- *
+ * Factory used to create an editor for a given key/value pair.
  */
 public final class EditorFactory {
 
     /**
      * The single EditorFactory instance.
      */
-    public static final EditorFactory INSTANCE = new EditorFactory();
-    private HashMap<Class<?>, Class<? extends Editor>> map = new HashMap<>();
+    static final EditorFactory INSTANCE = new EditorFactory();
+    private final HashMap<Class<?>, Class<? extends Editor>> map = new HashMap<>();
 
     private EditorFactory() {
         add(String.class, StringEditor.class);
@@ -70,10 +68,6 @@ public final class EditorFactory {
         add(Boolean.class, BooleanEditor.class);
         add(DataField.class, DataFieldEditor.class);
         add(Rotation.class, RotationEditor.class);
-        add(BarrelShifterMode.class, BarrelShifterModeEditor.class);
-        add(LeftRightFormat.class, LeftRightFormatsEditor.class);
-        add(IntFormat.class, IntFormatsEditor.class);
-        add(Orientation.class, OrientationEditor.class);
         add(Language.class, LanguageEditor.class);
         add(TestCaseDescription.class, TestCaseDescriptionEditor.class);
         add(FormatToExpression.class, FormatEditor.class);
@@ -81,7 +75,7 @@ public final class EditorFactory {
         add(ROMManger.class, ROMManagerEditor.class);
         add(Application.Type.class, ApplicationTypeEditor.class);
         add(CustomShapeDescription.class, CustomShapeEditor.class);
-        add(CustomCircuitShapeType.class, CustomCircuitShapeTypeEditor.class);
+        add(ColorScheme.class, ColorSchemeEditor.class);
     }
 
     private <T> void add(Class<T> clazz, Class<? extends Editor<T>> editor) {
@@ -101,8 +95,12 @@ public final class EditorFactory {
             return (Editor<T>) new MidiInstrumentEditor(value.toString());
 
         Class<? extends Editor> fac = map.get(key.getValueClass());
-        if (fac == null)
+
+        if (fac == null) {
+            if (key instanceof Key.KeyEnum)
+                return new EnumEditor((Enum) value, key);
             throw new RuntimeException("no editor found for " + key.getValueClass().getSimpleName());
+        }
 
         try {
             Constructor<? extends Editor> c = fac.getConstructor(value.getClass(), Key.class);
@@ -124,7 +122,7 @@ public final class EditorFactory {
         private JLabel label;
 
         @Override
-        public void addToPanel(JPanel panel, Key key, ElementAttributes elementAttributes, AttributeDialog attributeDialog, ConstraintsBuilder constraints) {
+        public void addToPanel(EditorPanel panel, Key<T> key, ElementAttributes elementAttributes, AttributeDialog attributeDialog) {
             this.attributeDialog = attributeDialog;
             label = new JLabel(key.getName() + ":  ");
             final String description = new LineBreaker().toHTML().breakLines(key.getDescription());
@@ -132,12 +130,12 @@ public final class EditorFactory {
             component = getComponent(elementAttributes);
             component.setToolTipText(description);
             if (labelAtTop) {
-                panel.add(label, constraints.width(2));
-                constraints.nextRow();
-                panel.add(component, constraints.width(2).dynamicHeight());
+                panel.add(label, cb -> cb.width(2));
+                panel.nextRow();
+                panel.add(component, cb -> cb.width(2).dynamicWidth().dynamicHeight());
             } else {
-                panel.add(label, constraints);
-                panel.add(component, constraints.x(1).dynamicWidth());
+                panel.add(label);
+                panel.add(component, cb -> cb.x(1).dynamicWidth());
             }
         }
 
@@ -184,7 +182,7 @@ public final class EditorFactory {
         public StringEditor(String value, Key<String> key) {
             if (key instanceof Key.LongString) {
                 Key.LongString k = (Key.LongString) key;
-                text = new JTextArea(k.getRows(), k.getColumns());
+                text = addF1Traversal(new JTextArea(k.getRows(), k.getColumns()));
                 final JScrollPane scrollPane = new JScrollPane(text);
 
                 if (k.getLineNumbers()) {
@@ -217,7 +215,7 @@ public final class EditorFactory {
 
                 setLabelAtTop(true);
             } else {
-                text = new JTextField(10);
+                text = addF1Traversal(new JTextField(10));
                 compToAdd = text;
             }
             text.setText(value);
@@ -295,6 +293,20 @@ public final class EditorFactory {
         public JTextComponent getTextComponent() {
             return text;
         }
+    }
+
+    /**
+     * Adds F1 as a focus traversal key to a text components.
+     *
+     * @param text The text component
+     * @param <TC> the concrete type of the text component
+     * @return the given text component
+     */
+    public static <TC extends JTextComponent> TC addF1Traversal(TC text) {
+        HashSet<AWTKeyStroke> set = new HashSet<>(text.getFocusTraversalKeys(KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS));
+        set.add(KeyStroke.getKeyStroke("F1"));
+        text.setFocusTraversalKeys(KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS, set);
+        return text;
     }
 
     private final static class IntegerEditor extends LabelEditor<Integer> {
@@ -401,6 +413,15 @@ public final class EditorFactory {
         }
 
         @Override
+        public void addToPanel(EditorPanel panel, Key<Long> key, ElementAttributes attr, AttributeDialog attributeDialog) {
+            if (key.isAdaptiveIntFormat()) {
+                Value value = new Value(attr.get(key), attr.getBits());
+                comboBox.setSelectedItem(attr.get(Keys.INT_FORMAT).formatToEdit(value));
+            }
+            super.addToPanel(panel, key, attr, attributeDialog);
+        }
+
+        @Override
         public Long getValue() throws EditorParseException {
             Object item = comboBox.getSelectedItem();
             long value = 0;
@@ -430,6 +451,15 @@ public final class EditorFactory {
             comboBox = new JComboBox<>(DEFAULTS);
             comboBox.setEditable(true);
             comboBox.setSelectedItem(value.toString());
+        }
+
+        @Override
+        public void addToPanel(EditorPanel panel, Key<InValue> key, ElementAttributes attr, AttributeDialog attributeDialog) {
+            if (key.isAdaptiveIntFormat()) {
+                Value value = new Value(attr.get(key), attr.getBits());
+                comboBox.setSelectedItem(attr.get(Keys.INT_FORMAT).formatToEdit(value));
+            }
+            super.addToPanel(panel, key, attr, attributeDialog);
         }
 
         @Override
@@ -468,17 +498,13 @@ public final class EditorFactory {
         }
 
         @Override
-        public void addToPanel(JPanel panel, Key key, ElementAttributes elementAttributes, AttributeDialog attributeDialog, ConstraintsBuilder constraints) {
-            panel.add(bool, constraints.width(2));
+        public void addToPanel(EditorPanel panel, Key key, ElementAttributes elementAttributes, AttributeDialog attributeDialog) {
+            panel.add(bool, cb -> cb.width(2));
         }
 
         @Override
         public void setEnabled(boolean enabled) {
             bool.setEnabled(enabled);
-        }
-
-        JCheckBox getCheckBox() {
-            return bool;
         }
 
         @Override
@@ -592,6 +618,7 @@ public final class EditorFactory {
     private final static class DataFieldEditor extends LabelEditor<DataField> {
 
         private DataField data;
+        private boolean majorModification = false;
 
         public DataFieldEditor(DataField data, Key<DataField> key) {
             this.data = data;
@@ -606,22 +633,14 @@ public final class EditorFactory {
                     try {
                         getAttributeDialog().storeEditedValues();
                         int dataBits = attr.get(Keys.BITS);
-                        int addrBits;
-
-                        // INPUT_COUNT and ADDR_BITS must have the same default value!!!
-                        // If INPUT_COUNT is not present (default value is used) the default value of
-                        // ADDR_BITS is used. This works only if both have the same default value!!!
-                        if (attr.contains(Keys.INPUT_COUNT)) {
-                            // used to handle the LUT
-                            addrBits = attr.get(Keys.INPUT_COUNT);
-                        } else {
-                            // memory, RAM/ROM
-                            addrBits = attr.get(Keys.ADDR_BITS);
-                        }
-                        DataEditor de = new DataEditor(panel, data, dataBits, addrBits, false, SyncAccess.NOSYNC);
+                        int addrBits = getAddrBits(attr);
+                        DataEditor de = new DataEditor(panel, data, dataBits, addrBits, false, SyncAccess.NOSYNC, attr.get(Keys.INT_FORMAT));
                         de.setFileName(attr.getFile(ROM.LAST_DATA_FILE_KEY));
                         if (de.showDialog()) {
-                            data = de.getModifiedDataField();
+                            DataField mod = de.getModifiedDataField();
+                            if (!data.equals(mod))
+                                majorModification = true;
+                            data = mod;
                             attr.setFile(ROM.LAST_DATA_FILE_KEY, de.getFileName());
                         }
                     } catch (EditorParseException e1) {
@@ -635,7 +654,8 @@ public final class EditorFactory {
                             try {
                                 getAttributeDialog().storeEditedValues();
                                 int dataBits = attr.get(Keys.BITS);
-                                data = Importer.read(attr.getFile(ROM.LAST_DATA_FILE_KEY), dataBits);
+                                data = Importer.read(attr.getFile(ROM.LAST_DATA_FILE_KEY), dataBits)
+                                        .trimValues(getAddrBits(attr), dataBits);
                             } catch (IOException e1) {
                                 new ErrorMessage(Lang.get("msg_errorReadingFile")).addCause(e1).show(panel);
                             } catch (EditorParseException e1) {
@@ -668,10 +688,28 @@ public final class EditorFactory {
             return panel;
         }
 
+        private int getAddrBits(ElementAttributes attr) {
+            // INPUT_COUNT and ADDR_BITS must have the same default value!!!
+            // If INPUT_COUNT is not present (default value is used) the default value of
+            // ADDR_BITS is used. This works only if both have the same default value!!!
+            if (attr.contains(Keys.INPUT_COUNT)) {
+                // used to handle the LUT
+                return attr.get(Keys.INPUT_COUNT);
+            } else {
+                // memory, RAM/ROM
+                return attr.get(Keys.ADDR_BITS);
+            }
+        }
+
         @Override
         public DataField getValue() {
             data.trim();
             return data;
+        }
+
+        @Override
+        public boolean invisibleModification() {
+            return majorModification;
         }
 
         @Override
@@ -744,44 +782,12 @@ public final class EditorFactory {
         }
     }
 
-    private static final class IntFormatsEditor extends EnumEditor<IntFormat> {
-        public IntFormatsEditor(IntFormat value, Key<IntFormat> key) {
-            super(value, key);
-        }
-    }
-
-    private static final class OrientationEditor extends EnumEditor<Orientation> {
-        public OrientationEditor(Orientation value, Key<Orientation> key) {
-            super(value, key);
-        }
-    }
-
-    private static final class BarrelShifterModeEditor extends EnumEditor<BarrelShifterMode> {
-        public BarrelShifterModeEditor(BarrelShifterMode value, Key<BarrelShifterMode> key) {
-            super(value, key);
-        }
-    }
-
-    private static final class LeftRightFormatsEditor extends EnumEditor<LeftRightFormat> {
-        public LeftRightFormatsEditor(LeftRightFormat value, Key<LeftRightFormat> key) {
-            super(value, key);
-        }
-    }
-
-    private static final class CustomCircuitShapeTypeEditor extends EnumEditor<CustomCircuitShapeType> {
-        public CustomCircuitShapeTypeEditor(CustomCircuitShapeType value, Key<CustomCircuitShapeType> key) {
-            super(value, key);
-        }
-    }
-
     private static final class ApplicationTypeEditor extends EnumEditor<Application.Type> {
-        private final Key<Application.Type> key;
         private JComboBox combo;
         private JButton checkButton;
 
         public ApplicationTypeEditor(Application.Type value, Key<Application.Type> key) {
             super(value, key);
-            this.key = key;
         }
 
         @Override
@@ -793,11 +799,12 @@ public final class EditorFactory {
                     int n = combo.getSelectedIndex();
                     if (n >= 0) {
                         Application.Type appType = Application.Type.values()[n];
-                        Application app = Application.create(appType);
+                        Application app = Application.create(appType, elementAttributes);
                         if (app != null) {
                             try {
                                 getAttributeDialog().storeEditedValues();
-                                if (app.ensureConsistency(elementAttributes))
+                                final boolean consistent = app.ensureConsistency(elementAttributes);
+                                if (consistent)
                                     getAttributeDialog().updateEditedValues();
 
                                 PortDefinition ins = new PortDefinition(elementAttributes.get(Keys.EXTERNAL_INPUTS));
@@ -807,10 +814,11 @@ public final class EditorFactory {
 
                                 try {
                                     String message = app.checkCode(label, code, ins, outs);
-                                    if (message != null && !message.isEmpty())
-                                        new ErrorMessage(Lang.get("msg_checkResult") + "\n\n" + message).show(getAttributeDialog());
+                                    if (message != null && !message.isEmpty()) {
+                                        createError(consistent, Lang.get("msg_checkResult") + "\n\n" + message).show(getAttributeDialog());
+                                    }
                                 } catch (IOException e) {
-                                    new ErrorMessage(Lang.get("msg_checkResult")).addCause(e).show(getAttributeDialog());
+                                    createError(consistent, Lang.get("msg_checkResult")).addCause(e).show(getAttributeDialog());
                                 }
                             } catch (EditorParseException e) {
                                 e.printStackTrace();
@@ -818,11 +826,18 @@ public final class EditorFactory {
                         }
                     }
                 }
+
+                private ErrorMessage createError(boolean consistent, String message) {
+                    if (!consistent)
+                        message = Lang.get("msg_codeNotConsistent") + "\n\n" + message;
+                    return new ErrorMessage(message);
+                }
+
             }.setToolTip(Lang.get("btn_checkCode_tt")).createJButton();
             combo.addActionListener(new AbstractAction() {
                 @Override
                 public void actionPerformed(ActionEvent actionEvent) {
-                    enableButton();
+                    enableButton(elementAttributes);
                 }
             });
 
@@ -831,16 +846,16 @@ public final class EditorFactory {
             p.add(combo);
             p.add(checkButton, BorderLayout.EAST);
 
-            enableButton();
+            enableButton(elementAttributes);
 
             return p;
         }
 
-        void enableButton() {
+        void enableButton(ElementAttributes attr) {
             int n = combo.getSelectedIndex();
             if (n >= 0) {
                 Application.Type appType = Application.Type.values()[n];
-                Application app = Application.create(appType);
+                Application app = Application.create(appType, attr);
                 if (app != null)
                     checkButton.setEnabled(app.checkSupported());
             }
@@ -993,12 +1008,12 @@ public final class EditorFactory {
         }
 
         private InverterConfig getInverterConfig() {
-            InverterConfig ic = new InverterConfig();
+            InverterConfig.Builder ic = new InverterConfig.Builder();
             for (JCheckBox cb : boxes) {
                 if (cb.isSelected())
                     ic.add(cb.getText());
             }
-            return ic;
+            return ic.build();
         }
     }
 

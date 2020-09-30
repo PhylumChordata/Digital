@@ -8,7 +8,7 @@ package de.neemann.digital.draw.graphics;
 /**
  * A instance that performs a transformation on the drawing and then draws it on a given delegate.
  */
-public class GraphicTransform implements Graphic {
+public class GraphicTransform extends Graphic {
 
     private final Graphic parent;
     private final Transform transform;
@@ -40,12 +40,12 @@ public class GraphicTransform implements Graphic {
     }
 
     @Override
-    public void drawText(VectorInterface p1, VectorInterface p2, String text, Orientation orientation, Style style) {
-        parent.drawText(p1.transform(transform), p2.transform(transform), text, orientation, style);
+    public void drawText(VectorInterface p1, VectorInterface p2, VectorInterface p3, String text, Orientation orientation, Style style) {
+        parent.drawText(p1.transform(transform), p2.transform(transform), p3.transform(transform), text, orientation, style);
     }
 
     @Override
-    public boolean isFlagSet(String name) {
-        return parent.isFlagSet(name);
+    public boolean isFlagSet(Flag flag) {
+        return parent.isFlagSet(flag);
     }
 }

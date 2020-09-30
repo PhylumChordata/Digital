@@ -9,7 +9,6 @@ import de.neemann.digital.analyse.DetermineJKStateMachine;
 import de.neemann.digital.analyse.ModelAnalyserInfo;
 import de.neemann.digital.analyse.expression.*;
 import de.neemann.digital.analyse.expression.Not;
-import de.neemann.digital.analyse.expression.format.FormatterException;
 import de.neemann.digital.builder.BuilderException;
 import de.neemann.digital.builder.BuilderInterface;
 import de.neemann.digital.core.basic.*;
@@ -31,6 +30,7 @@ import de.neemann.digital.draw.elements.VisualElement;
 import de.neemann.digital.draw.elements.Wire;
 import de.neemann.digital.draw.graphics.Vector;
 import de.neemann.digital.draw.shapes.ShapeFactory;
+import de.neemann.digital.gui.Settings;
 import de.neemann.digital.lang.Lang;
 
 import java.util.*;
@@ -53,12 +53,15 @@ public class CircuitBuilder implements BuilderInterface<CircuitBuilder> {
     private final ArrayList<Variable> sequentialVars;
     private final ArrayList<FragmentVisualElement> flipflops;
     private final ArrayList<Variable> desiredVarOrdering;
+    private final HashSet<String> varsToNet;
+    private final HashSet<String> localVarsUsed;
     private int pos;
     private boolean useLUT;
     private boolean useJKff;
-    private HashSet<String> varsToNet;
     private ModelAnalyserInfo mai;
     private int lutNumber;
+    private boolean resolveLocalVars;
+    private boolean wideShapes;
 
 
     /**
@@ -88,6 +91,19 @@ public class CircuitBuilder implements BuilderInterface<CircuitBuilder> {
         combinatorialOutputs = new HashMap<>();
         sequentialVars = new ArrayList<>();
         varsToNet = new HashSet<>();
+        localVarsUsed = new HashSet<>();
+        wideShapes = Settings.getInstance().get(Keys.SETTINGS_IEEE_SHAPES);
+    }
+
+    /**
+     * Allows the usage of local variables
+     *
+     * @param resolveLocalVars true if local variables should be resolved
+     * @return this for chained calls
+     */
+    public CircuitBuilder setResolveLocalVars(boolean resolveLocalVars) {
+        this.resolveLocalVars = resolveLocalVars;
+        return this;
     }
 
     /**
@@ -113,6 +129,17 @@ public class CircuitBuilder implements BuilderInterface<CircuitBuilder> {
     }
 
     /**
+     * Enables wide shapes
+     *
+     * @param wideShapes true if wide shapes should be used
+     * @return this for chained calls
+     */
+    public CircuitBuilder setWideShapes(boolean wideShapes) {
+        this.wideShapes = wideShapes;
+        return this;
+    }
+
+    /**
      * Adds an expression to the circuit
      *
      * @param name       the output name
@@ -132,11 +159,22 @@ public class CircuitBuilder implements BuilderInterface<CircuitBuilder> {
         final FragmentVisualElement frag = new FragmentVisualElement(Out.DESCRIPTION, shapeFactory).setAttr(Keys.LABEL, name);
         checkPinNumber(frag.getVisualElement());
 
+        checkForLocalVars(expression);
+
         combinatorialOutputs.put(name, frag);
 
         fragments.add(new FragmentExpression(fr, frag));
         expression.traverse(variableVisitor);
         return this;
+    }
+
+    void checkForLocalVars(Expression expression) {
+        VariableVisitor vv = new VariableVisitor();
+        expression.traverse(vv);
+        for (Variable usedVar : vv.getVariables())
+            for (String createdVar : combinatorialOutputs.keySet())
+                if (usedVar.getIdentifier().equals(createdVar))
+                    localVarsUsed.add(createdVar);
     }
 
     /**
@@ -160,8 +198,8 @@ public class CircuitBuilder implements BuilderInterface<CircuitBuilder> {
                 useDff = jk.isDFF();
                 if (!useDff) {
                     boolean isJequalK = new Equals(jk.getSimplifiedJ(), jk.getSimplifiedK()).isEqual();
+                    Fragment frJ = createFragment(jk.getSimplifiedJ());
                     if (isJequalK) {
-                        Fragment frJ = createFragment(jk.getSimplifiedJ());
                         FragmentVisualElement ff = new FragmentVisualElement(FlipflopJK.DESCRIPTION, shapeFactory)
                                 .ignoreInput(1)
                                 .setAttr(Keys.LABEL, name)
@@ -171,7 +209,6 @@ public class CircuitBuilder implements BuilderInterface<CircuitBuilder> {
                         FragmentExpression fe = new FragmentExpression(fsv, new FragmentVisualElement(Tunnel.DESCRIPTION, shapeFactory).setAttr(Keys.NETNAME, name));
                         fragments.add(new FragmentExpression(frJ, fe));
                     } else {
-                        Fragment frJ = createFragment(jk.getSimplifiedJ());
                         Fragment frK = createFragment(jk.getSimplifiedK());
                         FragmentVisualElement ff = new FragmentVisualElement(FlipflopJK.DESCRIPTION, shapeFactory)
                                 .ignoreInput(1)
@@ -182,7 +219,7 @@ public class CircuitBuilder implements BuilderInterface<CircuitBuilder> {
                         fragments.add(new FragmentExpression(Arrays.asList(frJ, frK), fe));
                     }
                 }
-            } catch (ExpressionException | FormatterException e) {
+            } catch (ExpressionException e) {
                 throw new BuilderException(e.getMessage());
             }
         }
@@ -200,6 +237,9 @@ public class CircuitBuilder implements BuilderInterface<CircuitBuilder> {
             }
             fragments.add(new FragmentExpression(fr, fe));
         }
+
+        checkForLocalVars(expression);
+
         expression.traverse(variableVisitor);
         sequentialVars.add(new Variable(name));
         return this;
@@ -281,11 +321,17 @@ public class CircuitBuilder implements BuilderInterface<CircuitBuilder> {
             Operation op = (Operation) expression;
             ArrayList<Fragment> frags = getOperationFragments(op);
             if (op instanceof Operation.And)
-                return new FragmentExpression(frags, new FragmentVisualElement(And.DESCRIPTION, frags.size(), shapeFactory));
+                return new FragmentExpression(frags,
+                        new FragmentVisualElement(And.DESCRIPTION, frags.size(), shapeFactory)
+                                .setAttr(Keys.WIDE_SHAPE, wideShapes));
             else if (op instanceof Operation.Or)
-                return new FragmentExpression(frags, new FragmentVisualElement(Or.DESCRIPTION, frags.size(), shapeFactory));
+                return new FragmentExpression(frags,
+                        new FragmentVisualElement(Or.DESCRIPTION, frags.size(), shapeFactory)
+                                .setAttr(Keys.WIDE_SHAPE, wideShapes));
             else if (op instanceof Operation.XOr)
-                return new FragmentExpression(frags, new FragmentVisualElement(XOr.DESCRIPTION, frags.size(), shapeFactory));
+                return new FragmentExpression(frags,
+                        new FragmentVisualElement(XOr.DESCRIPTION, frags.size(), shapeFactory)
+                                .setAttr(Keys.WIDE_SHAPE, wideShapes));
             else
                 throw new BuilderException(Lang.get("err_builder_operationNotSupported", op.getClass().getSimpleName()));
         } else if (expression instanceof Not) {
@@ -296,13 +342,19 @@ public class CircuitBuilder implements BuilderInterface<CircuitBuilder> {
                 return fragmentVariable;
             } else if (n.getExpression() instanceof Operation.And) {
                 ArrayList<Fragment> frags = getOperationFragments((Operation) n.getExpression());
-                return new FragmentExpression(frags, new FragmentVisualElement(NAnd.DESCRIPTION, frags.size(), shapeFactory));
+                return new FragmentExpression(frags,
+                        new FragmentVisualElement(NAnd.DESCRIPTION, frags.size(), shapeFactory)
+                                .setAttr(Keys.WIDE_SHAPE, wideShapes));
             } else if (n.getExpression() instanceof Operation.Or) {
                 ArrayList<Fragment> frags = getOperationFragments((Operation) n.getExpression());
-                return new FragmentExpression(frags, new FragmentVisualElement(NOr.DESCRIPTION, frags.size(), shapeFactory));
+                return new FragmentExpression(frags,
+                        new FragmentVisualElement(NOr.DESCRIPTION, frags.size(), shapeFactory)
+                                .setAttr(Keys.WIDE_SHAPE, wideShapes));
             } else if (n.getExpression() instanceof Operation.XOr) {
                 ArrayList<Fragment> frags = getOperationFragments((Operation) n.getExpression());
-                return new FragmentExpression(frags, new FragmentVisualElement(XNOr.DESCRIPTION, frags.size(), shapeFactory));
+                return new FragmentExpression(frags,
+                        new FragmentVisualElement(XNOr.DESCRIPTION, frags.size(), shapeFactory)
+                                .setAttr(Keys.WIDE_SHAPE, wideShapes));
             }
             return new FragmentExpression(createBasicFragment(n.getExpression()), new FragmentVisualElement(de.neemann.digital.core.basic.Not.DESCRIPTION, shapeFactory));
         } else if (isVar(expression)) {
@@ -327,7 +379,7 @@ public class CircuitBuilder implements BuilderInterface<CircuitBuilder> {
 
     private void createInputBus(Collection<Variable> inputs, Circuit circuit) {
         HashMap<String, Integer> varPos = new HashMap<>();
-        int dx = -inputs.size() * SIZE * 2;
+        int dx = -(inputs.size() * 3 - 1) * SIZE;
         pos -= SIZE;
         for (Variable v : inputs) {
             VisualElement visualElement;
@@ -361,7 +413,7 @@ public class CircuitBuilder implements BuilderInterface<CircuitBuilder> {
             }
 
             varPos.put(v.getIdentifier(), dx);
-            dx += SIZE * 2;
+            dx += SIZE * 3;
         }
 
         for (FragmentVariable f : fragmentVariables) {
@@ -397,6 +449,9 @@ public class CircuitBuilder implements BuilderInterface<CircuitBuilder> {
      * @return the circuit
      */
     public Circuit createCircuit() {
+        if (resolveLocalVars)
+            resolveLocalVars();
+
         // determine maximum width
         int maxWidth = 0;
         for (Fragment f : fragments) {
@@ -431,7 +486,7 @@ public class CircuitBuilder implements BuilderInterface<CircuitBuilder> {
             variables = order(variables, sequentialVars);
 
         if (mai != null)
-            checkForInputBus(variables, -(variables.size() + 5) * SIZE * 2, circuit);
+            checkForInputBus(variables, -SIZE * 5 - variables.size() * SIZE * 3, circuit);
 
         createInputBus(variables, circuit);
 
@@ -449,6 +504,14 @@ public class CircuitBuilder implements BuilderInterface<CircuitBuilder> {
         }
 
         return circuit;
+    }
+
+    private void resolveLocalVars() {
+        for (String lv : localVarsUsed) {
+            varsToNet.add(lv);
+            FragmentVisualElement frag = combinatorialOutputs.get(lv);
+            frag.traverse(new ReplaceOutputByTunnel(lv, shapeFactory));
+        }
     }
 
     private void checkForInputBus(Collection<Variable> variables, int splitterXPos, Circuit circuit) {
@@ -711,6 +774,30 @@ public class CircuitBuilder implements BuilderInterface<CircuitBuilder> {
 
         private boolean containsLUT() {
             return hasLUT;
+        }
+    }
+
+    private static final class ReplaceOutputByTunnel implements FragmentVisitor {
+        private final String outName;
+        private final ShapeFactory shapeFactory;
+
+        private ReplaceOutputByTunnel(String outName, ShapeFactory shapeFactory) {
+            this.outName = outName;
+            this.shapeFactory = shapeFactory;
+        }
+
+        @Override
+        public void visit(Fragment fr) {
+            if (fr instanceof FragmentVisualElement) {
+                FragmentVisualElement fve = (FragmentVisualElement) fr;
+                VisualElement ve = fve.getVisualElement();
+                if (ve.equalsDescription(Out.DESCRIPTION) && ve.getElementAttributes().getLabel().equals(outName)) {
+                    fve.setVisualElement(
+                            new VisualElement(Tunnel.DESCRIPTION.getName())
+                                    .setAttribute(Keys.NETNAME, outName)
+                                    .setShapeFactory(shapeFactory));
+                }
+            }
         }
     }
 }

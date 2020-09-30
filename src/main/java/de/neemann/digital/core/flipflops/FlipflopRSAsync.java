@@ -26,6 +26,7 @@ public class FlipflopRSAsync extends FlipflopBit {
     public static final ElementTypeDescription DESCRIPTION
             = new ElementTypeDescription("RS_FF_AS", FlipflopRSAsync.class, input("S"), input("R"))
             .addAttribute(Keys.ROTATE)
+            .addAttribute(Keys.MIRROR)
             .addAttribute(Keys.LABEL)
             .addAttribute(Keys.DEFAULT)
             .addAttribute(Keys.INVERTER_CONFIG)
@@ -60,8 +61,8 @@ public class FlipflopRSAsync extends FlipflopBit {
 
         if (s) {
             if (r) {
-                q = true;
-                qn = true;
+                q = false;
+                qn = false;
             } else {
                 q = true;
                 qn = false;
@@ -71,11 +72,11 @@ public class FlipflopRSAsync extends FlipflopBit {
                 q = false;
                 qn = true;
             } else {
-                if (q && qn) {
+                if (!q && !qn) {
                     if (Math.random() < 0.5) {
-                        q = false;
+                        q = true;
                     } else {
-                        qn = false;
+                        qn = true;
                     }
                 }
             }
@@ -91,7 +92,7 @@ public class FlipflopRSAsync extends FlipflopBit {
     @Override
     public void setInputs(ObservableValues inputs) throws BitsException {
         sVal = inputs.get(0).addObserverToValue(this).checkBits(1, this, 0);
-        rVal = inputs.get(1).addObserverToValue(this).checkBits(1, this, 2);
+        rVal = inputs.get(1).addObserverToValue(this).checkBits(1, this, 1);
     }
 
 }

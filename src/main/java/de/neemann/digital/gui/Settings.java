@@ -5,16 +5,11 @@
  */
 package de.neemann.digital.gui;
 
-import com.thoughtworks.xstream.XStream;
-import com.thoughtworks.xstream.io.xml.PrettyPrintWriter;
-import de.neemann.digital.core.element.AttributeListener;
 import de.neemann.digital.core.element.ElementAttributes;
 import de.neemann.digital.core.element.Key;
 import de.neemann.digital.core.element.Keys;
-import de.neemann.digital.draw.elements.Circuit;
+import de.neemann.digital.draw.graphics.ColorScheme;
 
-import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -24,7 +19,7 @@ import java.util.List;
  * <p>
  * Created by Helmut.Neemann on 11.05.2016.
  */
-public final class Settings implements AttributeListener {
+public final class Settings extends SettingsBase {
 
     private static final class SettingsHolder {
         static final Settings INSTANCE = new Settings();
@@ -39,19 +34,22 @@ public final class Settings implements AttributeListener {
         return SettingsHolder.INSTANCE;
     }
 
-    private final ElementAttributes attributes;
-    private final File filename;
-    private final List<Key> settingsKeys;
-
     private Settings() {
+        super(createKeyList(), ".digital.cfg");
+    }
+
+    private static List<Key> createKeyList() {
         List<Key> intList = new ArrayList<>();
         intList.add(Keys.SETTINGS_IEEE_SHAPES);
         intList.add(Keys.SETTINGS_LANGUAGE);
         intList.add(Keys.SETTINGS_EXPRESSION_FORMAT);
+        intList.add(ColorScheme.COLOR_SCHEME);
+        intList.add(ColorScheme.CUSTOM_COLOR_SCHEME);
         intList.add(Keys.SETTINGS_DEFAULT_TREESELECT);
         intList.add(Keys.SETTINGS_GRID);
         intList.add(Keys.SETTINGS_SHOW_WIRE_BITS);
         intList.add(Keys.SETTINGS_NOTOOLTIPS);
+        intList.add(Keys.SETTINGS_WIRETOOLTIP);
         intList.add(Keys.SETTINGS_LIBRARY_PATH);
         intList.add(Keys.SETTINGS_JAR_PATH);
         intList.add(Keys.SETTINGS_ATF1502_FITTER);
@@ -61,65 +59,10 @@ public final class Settings implements AttributeListener {
         intList.add(Keys.SETTINGS_TOOLCHAIN_CONFIG);
         intList.add(Keys.SETTINGS_FONT_SCALING);
         intList.add(Keys.SETTINGS_MAC_MOUSE);
+        intList.add(Keys.SETTINGS_USE_EQUALS_KEY);
+        intList.add(Keys.SETTINGS_SHOW_TUNNEL_RENAME_DIALOG);
 
-        settingsKeys = Collections.unmodifiableList(intList);
-
-        filename = new File(new File(System.getProperty("user.home")), ".digital.cfg");
-
-        ElementAttributes attr = null;
-        if (filename.exists()) {
-            XStream xStream = Circuit.getxStream();
-            try (InputStream in = new FileInputStream(filename)) {
-                attr = (ElementAttributes) xStream.fromXML(in);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-
-        if (attr == null) {
-            System.out.println("Use default settings!");
-            attributes = new ElementAttributes();
-        } else
-            attributes = attr;
-
-        attributes.addListener(this);
-    }
-
-    /**
-     * @return the settings
-     */
-    public ElementAttributes getAttributes() {
-        return attributes;
-    }
-
-    /**
-     * Gets a value from the settings.
-     * If the value is not present the default value is returned
-     *
-     * @param key     the key
-     * @param <VALUE> the type of the value
-     * @return the value
-     */
-    public <VALUE> VALUE get(Key<VALUE> key) {
-        return attributes.get(key);
-    }
-
-    @Override
-    public void attributeChanged() {
-        XStream xStream = Circuit.getxStream();
-        try (Writer out = new OutputStreamWriter(new FileOutputStream(filename), StandardCharsets.UTF_8)) {
-            out.write("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
-            xStream.marshal(attributes, new PrettyPrintWriter(out));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    /**
-     * @return the settings keys
-     */
-    public List<Key> getKeys() {
-        return settingsKeys;
+        return Collections.unmodifiableList(intList);
     }
 
     /**
@@ -129,12 +72,25 @@ public final class Settings implements AttributeListener {
      * @return true if the modification requires a restart
      */
     public boolean requiresRestart(ElementAttributes modified) {
-        for (Key<?> key : settingsKeys)
-            if (key.getRequiresRestart() && !attributes.equalsKey(key, modified))
+        for (Key<?> key : getKeys())
+            if (key.getRequiresRestart() && !getAttributes().equalsKey(key, modified))
+                return true;
+
+        return false;
+    }
+
+    /**
+     * Returns true if the given modification requires a repaint.
+     *
+     * @param modified the modified settings
+     * @return true if the modification requires a repaint
+     */
+    public boolean requiresRepaint(ElementAttributes modified) {
+        for (Key<?> key : getKeys())
+            if (key.getRequiresRepaint() && !getAttributes().equalsKey(key, modified))
                 return true;
 
         return false;
     }
 
 }
-

@@ -5,7 +5,6 @@
  */
 package de.neemann.digital.draw.shapes;
 
-import de.neemann.digital.core.Observer;
 import de.neemann.digital.core.element.ElementAttributes;
 import de.neemann.digital.core.element.Keys;
 import de.neemann.digital.core.element.PinDescription;
@@ -66,7 +65,7 @@ public class DILShape implements Shape {
     }
 
     @Override
-    public InteractorInterface applyStateMonitor(IOState ioState, Observer guiObserver) {
+    public InteractorInterface applyStateMonitor(IOState ioState) {
         return null;
     }
 
@@ -85,14 +84,14 @@ public class DILShape implements Shape {
                             .add(2, y - pin)
                             .add(2, y + pin)
                             .add(pin, y + pin), Style.NORMAL);
-            graphic.drawText(new Vector(pin + SIZE2 / 2, y), new Vector(pin + SIZE, y), map.getText(i + 1), Orientation.LEFTCENTER, Style.SHAPE_PIN);
+            graphic.drawText(new Vector(pin + SIZE2 / 2, y), map.getText(i + 1), Orientation.LEFTCENTER, Style.SHAPE_PIN);
             graphic.drawPolygon(
                     new Polygon(false)
                             .add(x - pin, y - pin)
                             .add(x - 2, y - pin)
                             .add(x - 2, y + pin)
                             .add(x - pin, y + pin), Style.NORMAL);
-            graphic.drawText(new Vector(x - pin - SIZE2 / 2, y), new Vector(x - pin + SIZE, y), map.getText(pinCount - i), Orientation.RIGHTCENTER, Style.SHAPE_PIN);
+            graphic.drawText(new Vector(x - pin - SIZE2 / 2, y), map.getText(pinCount - i), Orientation.RIGHTCENTER, Style.SHAPE_PIN);
         }
 
         graphic.drawPolygon(
@@ -107,7 +106,7 @@ public class DILShape implements Shape {
         graphic.drawText(new Vector(x / 2, SIZE2), new Vector(x / 2, SIZE * 2), shortName, Orientation.LEFTCENTER, Style.NORMAL_TEXT);
 
         if (label != null && label.length() > 0)
-            graphic.drawText(new Vector(x / 2, h + SIZE2), new Vector(x, h + SIZE2), label, Orientation.CENTERTOP, Style.NORMAL_TEXT);
+            graphic.drawText(new Vector(x / 2, h + SIZE2), label, Orientation.CENTERTOP, Style.NORMAL_TEXT);
     }
 
     private static final class ShapePinMap {

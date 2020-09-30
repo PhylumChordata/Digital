@@ -5,7 +5,6 @@
  */
 package de.neemann.digital.draw.shapes;
 
-import de.neemann.digital.core.Observer;
 import de.neemann.digital.core.element.ElementAttributes;
 import de.neemann.digital.core.element.Keys;
 import de.neemann.digital.core.element.PinDescriptions;
@@ -58,7 +57,7 @@ public class MuxerShape implements Shape {
     }
 
     @Override
-    public Interactor applyStateMonitor(IOState ioState, Observer guiObserver) {
+    public Interactor applyStateMonitor(IOState ioState) {
         return null;
     }
 
@@ -69,6 +68,6 @@ public class MuxerShape implements Shape {
                 .add(SIZE * 2 - 1, 5)
                 .add(SIZE * 2 - 1, inputCount * SIZE - 5)
                 .add(1, inputCount * SIZE + 4), Style.NORMAL);
-        graphic.drawText(new Vector(3, 2), new Vector(4, 2), "0", Orientation.LEFTTOP, Style.SHAPE_PIN);
+        graphic.drawText(new Vector(3, 2), "0", Orientation.LEFTTOP, Style.SHAPE_PIN);
     }
 }

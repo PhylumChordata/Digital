@@ -5,6 +5,7 @@
  */
 package de.neemann.digital.integration;
 
+import de.neemann.digital.core.ErrorDetector;
 import de.neemann.digital.core.Model;
 import de.neemann.digital.core.element.Keys;
 import de.neemann.digital.draw.elements.VisualElement;
@@ -32,8 +33,8 @@ public class TestExamples extends TestCase {
      */
     public void testDistExamples() throws Exception {
         File examples = new File(Resources.getRoot().getParentFile().getParentFile(), "/main/dig");
-        assertEquals(255, new FileScanner(this::check).scan(examples));
-        assertEquals(172, testCasesInFiles);
+        assertEquals(301, new FileScanner(this::check).scan(examples));
+        assertEquals(196, testCasesInFiles);
     }
 
     /**
@@ -43,8 +44,8 @@ public class TestExamples extends TestCase {
      */
     public void testTestExamples() throws Exception {
         File examples = new File(Resources.getRoot(), "/dig/test");
-        assertEquals(160, new FileScanner(this::check).scan(examples));
-        assertEquals(159, testCasesInFiles);
+        assertEquals(193, new FileScanner(this::check).scan(examples));
+        assertEquals(182, testCasesInFiles);
     }
 
     /**
@@ -78,6 +79,8 @@ public class TestExamples extends TestCase {
                         TestCaseDescription td = el.getElementAttributes().get(TestCaseElement.TESTDATA);
 
                         Model model = new ModelCreator(br.getCircuit(), br.getLibrary()).createModel(false);
+                        ErrorDetector ed = new ErrorDetector();
+                        model.addObserver(ed);
                         try {
                             TestExecutor tr = new TestExecutor(td).create(model);
 
@@ -89,6 +92,7 @@ public class TestExamples extends TestCase {
                         } finally {
                             model.close();
                         }
+                        ed.check();
                     }
             } catch (Exception e) {
                 if (shouldFail) {

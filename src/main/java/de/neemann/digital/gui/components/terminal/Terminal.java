@@ -14,16 +14,12 @@ import de.neemann.digital.core.element.ElementAttributes;
 import de.neemann.digital.core.element.ElementTypeDescription;
 import de.neemann.digital.core.element.Keys;
 
-import javax.swing.*;
-
-import java.awt.*;
-
 import static de.neemann.digital.core.element.PinInfo.input;
 
 /**
+ * Component which represents a text terminal.
  */
 public class Terminal extends Node implements Element {
-    private static final boolean HEADLESS = GraphicsEnvironment.isHeadless();
 
     /**
      * The terminal description
@@ -38,9 +34,8 @@ public class Terminal extends Node implements Element {
             .addAttribute(Keys.ROTATE)
             .addAttribute(Keys.LABEL);
 
-    private final String label;
     private final ElementAttributes attr;
-    private TerminalDialog terminalDialog;
+    private TerminalInterface terminal;
     private ObservableValue data;
     private ObservableValue clock;
     private boolean lastClock;
@@ -52,7 +47,6 @@ public class Terminal extends Node implements Element {
      * @param attributes the attributes
      */
     public Terminal(ElementAttributes attributes) {
-        label = attributes.getLabel();
         attr = attributes;
     }
 
@@ -73,14 +67,16 @@ public class Terminal extends Node implements Element {
         boolean clockVal = clock.getBool();
         if (!lastClock && clockVal && en.getBool()) {
             long value = data.getValue();
-            if (value != 0 && !HEADLESS)
-                SwingUtilities.invokeLater(() -> {
-                    if (terminalDialog == null || !terminalDialog.isVisible()) {
-                        terminalDialog = new TerminalDialog(getModel().getWindowPosManager().getMainFrame(), attr);
-                        getModel().getWindowPosManager().register("terminal_" + label, terminalDialog);
+            if (value != 0) {
+                if (terminal == null) {
+                    if (getModel().runningInMainFrame()) {
+                        terminal = TerminalDialog.getTerminal(getModel(), attr);
+                    } else {
+                        terminal = new ConsoleTerminal();
                     }
-                    terminalDialog.addChar((char) value);
-                });
+                }
+                terminal.addChar((char) value);
+            }
         }
         lastClock = clockVal;
     }
@@ -89,4 +85,10 @@ public class Terminal extends Node implements Element {
     public void writeOutputs() throws NodeException {
     }
 
+    /**
+     * @return the terminal interface
+     */
+    public TerminalInterface getTerminalInterface() {
+        return terminal;
+    }
 }

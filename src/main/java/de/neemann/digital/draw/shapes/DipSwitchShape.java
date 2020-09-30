@@ -6,7 +6,6 @@
 package de.neemann.digital.draw.shapes;
 
 import de.neemann.digital.core.ObservableValue;
-import de.neemann.digital.core.Observer;
 import de.neemann.digital.core.SyncAccess;
 import de.neemann.digital.core.Value;
 import de.neemann.digital.core.element.Element;
@@ -48,7 +47,7 @@ public class DipSwitchShape implements Shape {
             .add(-SIZE - SIZE2, -SIZE2 + 4)
             .add(-SIZE * 3 + 5, -SIZE2 + 4);
 
-    private static final Style STYLE = Style.THIN.deriveFillStyle(Color.GRAY);
+    private static final Style STYLE = Style.THIN.deriveFillStyle(ColorKey.PINS);
 
     private final String label;
     private final PinDescriptions outputs;
@@ -75,15 +74,13 @@ public class DipSwitchShape implements Shape {
     }
 
     @Override
-    public Interactor applyStateMonitor(IOState ioState, Observer guiObserver) {
+    public Interactor applyStateMonitor(IOState ioState) {
         this.ioState = ioState;
-        ioState.getOutput(0).addObserverToValue(guiObserver);
         return new Interactor() {
             @Override
-            public boolean clicked(CircuitComponent cc, Point pos, IOState ioState, Element element, SyncAccess modelSync) {
+            public void clicked(CircuitComponent cc, Point pos, IOState ioState, Element element, SyncAccess modelSync) {
                 ObservableValue value = ioState.getOutput(0);
-                modelSync.access(() -> value.setValue(1 - value.getValue()));
-                return true;
+                modelSync.modify(() -> value.setValue(1 - value.getValue()));
             }
         };
     }
@@ -99,7 +96,7 @@ public class DipSwitchShape implements Shape {
         graphic.drawPolygon(FRAME, Style.NORMAL);
         Vector pos = new Vector(-SIZE * 3 - SIZE2, 0);
         if (label.length() > 0)
-            graphic.drawText(pos, pos.add(-1, 0), label, Orientation.LEFTCENTER, Style.NORMAL);
+            graphic.drawText(pos, label, Orientation.RIGHTCENTER, Style.NORMAL);
 
         boolean on = defValue;
         if (value != null)

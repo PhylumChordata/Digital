@@ -20,7 +20,7 @@ public class Out implements Element {
      * The Input description
      */
     public static final ElementTypeDescription DESCRIPTION
-            = new ElementTypeDescription(Out.class, input("in")) {
+            = new ElementTypeDescription("Out", attributes -> new Out(attributes).enforceName(), input("in")) {
         @Override
         public String getDescription(ElementAttributes elementAttributes) {
             String d = Lang.evalMultilingualContent(elementAttributes.get(Keys.DESCRIPTION));
@@ -35,7 +35,9 @@ public class Out implements Element {
             .addAttribute(Keys.LABEL)
             .addAttribute(Keys.DESCRIPTION)
             .addAttribute(Keys.INT_FORMAT)
-            .addAttribute(Keys.PINNUMBER);
+            .addAttribute(Keys.PINNUMBER)
+            .addAttribute(Keys.ADD_VALUE_TO_GRAPH)
+            .supportsHDL();
 
     /**
      * The LED description
@@ -84,6 +86,8 @@ public class Out implements Element {
     private final String label;
     private final String pinNumber;
     private final IntFormat format;
+    private final boolean showInGraph;
+    private boolean enforceSignal = false;
     private ObservableValue value;
 
     /**
@@ -96,6 +100,7 @@ public class Out implements Element {
         label = attributes.getLabel();
         pinNumber = attributes.get(Keys.PINNUMBER);
         format = attributes.get(Keys.INT_FORMAT);
+        showInGraph = attributes.get(Keys.ADD_VALUE_TO_GRAPH);
     }
 
     /**
@@ -108,6 +113,7 @@ public class Out implements Element {
         label = null;
         pinNumber = "";
         format = null;
+        showInGraph = true;
     }
 
     @Override
@@ -126,31 +132,46 @@ public class Out implements Element {
 
     @Override
     public void registerNodes(Model model) {
-        model.addOutput(new Signal(label, value)
+        final Signal signal = new Signal(label, value)
                 .setPinNumber(pinNumber)
-                .setFormat(format));
+                .setShowInGraph(showInGraph)
+                .setFormat(format);
+        if (enforceSignal || signal.isValid())
+            model.addOutput(signal);
+    }
+
+    private Element enforceName() {
+        enforceSignal = true;
+        return this;
     }
 
     private final static class SevenSegTypeDescription extends ElementTypeDescription {
         private SevenSegTypeDescription() {
             super("Seven-Seg", attributes -> {
-                if (attributes.get(Keys.COMMON_CATHODE))
+                if (attributes.get(Keys.COMMON_CONNECTION))
                     return new Out(1, 1, 1, 1, 1, 1, 1, 1, 1);
                 else
                     return new Out(1, 1, 1, 1, 1, 1, 1, 1);
             });
             addAttribute(Keys.COLOR);
-            addAttribute(Keys.COMMON_CATHODE);
+            addAttribute(Keys.COMMON_CONNECTION);
+            addAttribute(Keys.COMMON_CONNECTION_TYPE);
             addAttribute(Keys.LED_PERSISTENCE);
         }
 
         @Override
-        public PinDescriptions getInputDescription(ElementAttributes attributes) throws NodeException {
-            if (attributes.get(Keys.COMMON_CATHODE)) {
-                return new PinDescriptions(
-                        input("a"), input("b"), input("c"),
-                        input("d"), input("e"), input("f"),
-                        input("g"), input("dp"), input("cc")).setLangKey(getPinLangKey());
+        public PinDescriptions getInputDescription(ElementAttributes attributes) {
+            if (attributes.get(Keys.COMMON_CONNECTION)) {
+                if (attributes.get(Keys.COMMON_CONNECTION_TYPE).equals(CommonConnectionType.anode))
+                    return new PinDescriptions(
+                            input("a"), input("b"), input("c"),
+                            input("d"), input("e"), input("f"),
+                            input("g"), input("dp"), input("ca")).setLangKey(getPinLangKey());
+                else
+                    return new PinDescriptions(
+                            input("a"), input("b"), input("c"),
+                            input("d"), input("e"), input("f"),
+                            input("g"), input("dp"), input("cc")).setLangKey(getPinLangKey());
             } else
                 return new PinDescriptions(
                         input("a"), input("b"), input("c"),

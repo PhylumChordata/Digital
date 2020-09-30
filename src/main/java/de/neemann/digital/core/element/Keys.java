@@ -10,6 +10,7 @@ import de.neemann.digital.core.IntFormat;
 import de.neemann.digital.core.arithmetic.BarrelShifterMode;
 import de.neemann.digital.core.arithmetic.LeftRightFormat;
 import de.neemann.digital.core.extern.Application;
+import de.neemann.digital.core.io.CommonConnectionType;
 import de.neemann.digital.core.io.InValue;
 import de.neemann.digital.core.memory.DataField;
 import de.neemann.digital.core.memory.rom.ROMManger;
@@ -172,7 +173,7 @@ public final class Keys {
      * The value of constants
      */
     public static final Key<Long> VALUE
-            = new Key<>("Value", 1L).allowGroupEdit();
+            = new Key<>("Value", 1L).setAdaptiveIntFormat().allowGroupEdit();
 
     /**
      * The default value of elements
@@ -184,7 +185,7 @@ public final class Keys {
      * The default value of inputs
      */
     public static final Key<InValue> INPUT_DEFAULT
-            = new Key<>("InDefault", new InValue(0)).allowGroupEdit().setSecondary();
+            = new Key<>("InDefault", new InValue(0)).setAdaptiveIntFormat().allowGroupEdit().setSecondary();
 
     /**
      * The default value of the dip switch
@@ -277,7 +278,7 @@ public final class Keys {
      * the data key for memory
      */
     public static final Key<DataField> DATA
-            = new Key<>("Data", DataField.DEFAULT);
+            = new Key<>("Data", DataField::new);
 
     /**
      * flag for flipping selector pos in muxers, decoders and drivers
@@ -303,6 +304,13 @@ public final class Keys {
      */
     public static final Key<CustomCircuitShapeType> SHAPE_TYPE
             = new Key.KeyEnum<>("shapeType", CustomCircuitShapeType.DEFAULT, CustomCircuitShapeType.values()).setSecondary();
+
+    /**
+     * Defines the distance to the previous pin. Used by the layout shape type
+     */
+    public static final Key.KeyInteger LAYOUT_SHAPE_DELTA
+            = new Key.KeyInteger("layoutShapeDelta", 0)
+            .setMin(0);
 
     /**
      * the width of an element if it is included as nested element
@@ -384,6 +392,12 @@ public final class Keys {
             = new Key<>("showDataGraphMicro", false).setSecondary();
 
     /**
+     * Used to add the value to the measurement graph
+     */
+    public static final Key<Boolean> ADD_VALUE_TO_GRAPH
+            = new Key<>("addValueToGraph", true).allowGroupEdit().setSecondary();
+
+    /**
      * flag to enable the single gate mode in the embedded data view
      */
     public static final Key<Boolean> MICRO_STEP
@@ -427,7 +441,7 @@ public final class Keys {
      * shape setting
      */
     public static final Key<Boolean> SETTINGS_IEEE_SHAPES
-            = new Key<>("IEEEShapes", Locale.getDefault().getLanguage().equals(Locale.US.getLanguage())).setRequiresRestart();
+            = new Key<>("IEEEShapes", !Locale.getDefault().getLanguage().equals(Locale.GERMAN.getLanguage())).setRequiresRestart();
 
     /**
      * The GUI Language
@@ -452,7 +466,7 @@ public final class Keys {
      * enables the grid
      */
     public static final Key<Boolean> SETTINGS_GRID
-            = new Key<>("grid", false);
+            = new Key<>("grid", true).setRequiresRepaint();
 
     /**
      * enables the wire bits view
@@ -464,7 +478,13 @@ public final class Keys {
      * enables the MAC mouse mode
      */
     public static final Key<Boolean> SETTINGS_MAC_MOUSE
-            = new Key<>("macMouse", Screen.isMac()).setRequiresRestart();
+            = new Key<>("macMouse", Screen.isMac()).setRequiresRestart().setSecondary();
+
+    /**
+     * enables tunnel rename dialog
+     */
+    public static final Key<Boolean> SETTINGS_SHOW_TUNNEL_RENAME_DIALOG
+            = new Key<>("tunnelRenameDialog", true).setSecondary();
 
     /**
      * output format for numbers
@@ -523,8 +543,14 @@ public final class Keys {
     /**
      * Used to indicate if the 7-seg display has a common cathode output
      */
-    public static final Key<Boolean> COMMON_CATHODE
+    public static final Key<Boolean> COMMON_CONNECTION
             = new Key<>("commonCathode", false).allowGroupEdit();
+
+    /**
+     * Used to define the common connection type
+     */
+    public static final Key<CommonConnectionType> COMMON_CONNECTION_TYPE
+            = new Key.KeyEnum<>("commonConnectionType", CommonConnectionType.cathode, CommonConnectionType.values()).setDependsOn(COMMON_CONNECTION).allowGroupEdit();
 
     /**
      * Used to enable the storage of the last state in the Seven Seg display.
@@ -589,7 +615,7 @@ public final class Keys {
      * contains the input inverter config
      */
     public static final Key<InverterConfig> INVERTER_CONFIG
-            = new Key<>("inverterConfig", new InverterConfig());
+            = new Key<>("inverterConfig", new InverterConfig.Builder().build());
 
     /**
      * Background Color of nested circuits
@@ -607,6 +633,17 @@ public final class Keys {
                     .setMax(400)
                     .setRequiresRestart()
                     .setSecondary();
+
+    /**
+     * Uses the equals key instead of the plus key.
+     */
+    public static final Key<Boolean> SETTINGS_USE_EQUALS_KEY;
+
+    static {
+        String language = Locale.getDefault().getLanguage();
+        SETTINGS_USE_EQUALS_KEY = new Key<>("equalsInsteadOfPlus",
+                language.equals("en") || language.equals("fr")).setSecondary();
+    }
 
     /**
      * true if a enable input is needed
@@ -648,7 +685,7 @@ public final class Keys {
      * The manager which contains all the roms data
      */
     public static final Key<ROMManger> ROMMANAGER
-            = new Key<>("romContent", ROMManger.EMPTY).setSecondary();
+            = new Key<>("romContent", ROMManger::new).setSecondary();
 
 
     /**
@@ -679,6 +716,12 @@ public final class Keys {
             = new Key.KeyFile("ghdlPath", new File("ghdl")).setSecondary();
 
     /**
+     * The ghdl options
+     */
+    public static final Key<String> GHDL_OPTIONS
+            = new Key.LongString("ghdlOptions", "--std=08 --ieee=synopsys").setRows(3).setColumns(30).setPanelId("Options");
+
+    /**
      * Path to iverilog installation directory
      */
     public static final Key<File> SETTINGS_IVERILOG_PATH
@@ -694,7 +737,7 @@ public final class Keys {
      * Shape used to represent a visual element
      */
     public static final Key<CustomShapeDescription> CUSTOM_SHAPE
-            = new Key<>("customShape", CustomShapeDescription.EMPTY)
+            = new Key<>("customShape", new CustomShapeDescription.Builder().build())
             .setSecondary()
             .setDependsOn(SHAPE_TYPE, st -> st.equals(CustomCircuitShapeType.CUSTOM));
 
@@ -771,17 +814,53 @@ public final class Keys {
             new Key<>("midiProgChange", false);
 
     /**
-     * Number of transistors used in a circuit.
-     */
-    public static final Key<Integer> TRANSISTORS =
-            new Key.KeyInteger("transistors", 0)
-                    .setMin(0)
-                    .setSecondary();
-
-    /**
      * Stores the IDE settings file
      */
     public static final Key<File> SETTINGS_TOOLCHAIN_CONFIG =
             new Key.KeyFile("toolChainConfig", new File("")).setSecondary().setRequiresRestart();
+
+    /**
+     * Used to input statements to generify a circuit.
+     */
+    public static final Key<String> GENERIC =
+            new Key.LongString("generic").allowGroupEdit();
+
+    /**
+     * Circuit is generic
+     */
+    public static final Key<Boolean> IS_GENERIC =
+            new Key<>("isGeneric", false).setSecondary();
+
+
+    /**
+     * Enables the tutorial
+     */
+    public static final Key<Boolean> SETTINGS_SHOW_TUTORIAL =
+            new Key<>("showTutorial", true).setSecondary();
+
+    /**
+     * Enables the wire tool tips
+     */
+    public static final Key<Boolean> SETTINGS_WIRETOOLTIP =
+            new Key<>("wireToolTips", false);
+
+
+    /**
+     * The switch acts as input
+     */
+    public static final Key<Boolean> SWITCH_ACTS_AS_INPUT =
+            new Key<>("switchActsAsInput", false).setSecondary();
+
+    /**
+     * Snaps the element to the grid
+     */
+    public static final Key<Boolean> SNAP_TO_GRID =
+            new Key<>("snapToGrid", true).setSecondary();
+
+    /**
+     * Mirrors the component
+     */
+    public static final Key<Boolean> MIRROR =
+            new Key<>("mirror", false).allowGroupEdit().setSecondary();
 
 }

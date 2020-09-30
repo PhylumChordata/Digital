@@ -5,7 +5,6 @@
  */
 package de.neemann.digital.draw.shapes;
 
-import de.neemann.digital.core.Observer;
 import de.neemann.digital.core.element.ElementAttributes;
 import de.neemann.digital.core.element.Keys;
 import de.neemann.digital.core.element.PinDescriptions;
@@ -57,7 +56,7 @@ public class TextShape implements Shape {
     }
 
     @Override
-    public Interactor applyStateMonitor(IOState ioState, Observer guiObserver) {
+    public Interactor applyStateMonitor(IOState ioState) {
         return null;
     }
 
@@ -72,7 +71,7 @@ public class TextShape implements Shape {
             char c = text.charAt(i);
             if (c == '\n') {
                 if (sb.length() > 0) {
-                    graphic.drawText(pos, pos.add(1, 0), sb.toString(), orientation, style);
+                    graphic.drawText(pos, sb.toString(), orientation, style);
                     sb.setLength(0);
                 }
                 pos = pos.add(0, dy);
@@ -80,6 +79,6 @@ public class TextShape implements Shape {
                 sb.append(c);
         }
         if (sb.length() > 0)
-            graphic.drawText(pos, pos.add(1, 0), sb.toString(), orientation, style);
+            graphic.drawText(pos, sb.toString(), orientation, style);
     }
 }

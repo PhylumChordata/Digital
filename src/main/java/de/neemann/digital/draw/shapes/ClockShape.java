@@ -6,7 +6,6 @@
 package de.neemann.digital.draw.shapes;
 
 import de.neemann.digital.core.ObservableValue;
-import de.neemann.digital.core.Observer;
 import de.neemann.digital.core.SyncAccess;
 import de.neemann.digital.core.element.Element;
 import de.neemann.digital.core.element.ElementAttributes;
@@ -21,6 +20,8 @@ import de.neemann.digital.gui.components.CircuitComponent;
 
 import java.awt.*;
 
+import static de.neemann.digital.draw.shapes.GenericShape.SIZE2;
+import static de.neemann.digital.draw.shapes.OutputShape.LATEX_RAD;
 import static de.neemann.digital.draw.shapes.OutputShape.OUT_SIZE;
 
 /**
@@ -28,7 +29,6 @@ import static de.neemann.digital.draw.shapes.OutputShape.OUT_SIZE;
  */
 public class ClockShape implements Shape {
     private static final int WI = OUT_SIZE / 3;
-    private static final Vector POS = new Vector(-OUT_SIZE - WI * 2, WI);
 
     private final String label;
     private final PinDescriptions outputs;
@@ -55,42 +55,45 @@ public class ClockShape implements Shape {
     }
 
     @Override
-    public Interactor applyStateMonitor(IOState ioState, Observer guiObserver) {
-        ioState.getOutput(0).addObserverToValue(guiObserver); // necessary to replot wires also if component itself does not depend on state
+    public Interactor applyStateMonitor(IOState ioState) {
         return new Interactor() {
             @Override
-            public boolean clicked(CircuitComponent cc, Point pos, IOState ioState, Element element, SyncAccess modelSync) {
+            public void clicked(CircuitComponent cc, Point pos, IOState ioState, Element element, SyncAccess modelSync) {
                 ObservableValue value = ioState.getOutput(0);
-                if (value.getBits() == 1) {
-                    modelSync.access(() -> {
-                        value.setValue(1 - value.getValue());
-                    });
-                    return true;
-                }
-                return false;
+                if (value.getBits() == 1)
+                    modelSync.modify(() -> value.setValue(1 - value.getValue()));
             }
         };
     }
 
     @Override
     public void drawTo(Graphic graphic, Style heighLight) {
-        graphic.drawPolygon(new Polygon(true)
-                .add(-OUT_SIZE * 2 - 1, -OUT_SIZE)
-                .add(-1, -OUT_SIZE)
-                .add(-1, OUT_SIZE)
-                .add(-OUT_SIZE * 2 - 1, OUT_SIZE), Style.NORMAL);
+        Vector wavePos;
+        if (graphic.isFlagSet(Graphic.Flag.smallIO)) {
+            Vector center = new Vector(-LATEX_RAD.x, 0);
+            graphic.drawCircle(center.sub(LATEX_RAD), center.add(LATEX_RAD), Style.NORMAL);
+            Vector textPos = new Vector(-SIZE2 - LATEX_RAD.x, 0);
+            graphic.drawText(textPos, label, Orientation.RIGHTCENTER, Style.INOUT);
+            wavePos = center.sub(new Vector(2 * WI, LATEX_RAD.y + WI + 1));
+        } else {
+            graphic.drawPolygon(new Polygon(true)
+                    .add(-OUT_SIZE * 2 - 1, -OUT_SIZE)
+                    .add(-1, -OUT_SIZE)
+                    .add(-1, OUT_SIZE)
+                    .add(-OUT_SIZE * 2 - 1, OUT_SIZE), Style.NORMAL);
 
+            Vector textPos = new Vector(-OUT_SIZE * 3, 0);
+            graphic.drawText(textPos, label, Orientation.RIGHTCENTER, Style.NORMAL);
+            wavePos = new Vector(-OUT_SIZE - WI * 2, WI);
+        }
         graphic.drawPolygon(new Polygon(false)
-                .add(POS)
-                .add(POS.add(WI, 0))
-                .add(POS.add(WI, -WI * 2))
-                .add(POS.add(2 * WI, -WI * 2))
-                .add(POS.add(2 * WI, 0))
-                .add(POS.add(3 * WI, 0))
-                .add(POS.add(3 * WI, -WI * 2))
-                .add(POS.add(4 * WI, -WI * 2)), Style.THIN);
-
-        Vector textPos = new Vector(-OUT_SIZE * 3, 0);
-        graphic.drawText(textPos, textPos.add(1, 0), label, Orientation.RIGHTCENTER, Style.NORMAL);
+                .add(wavePos)
+                .add(wavePos.add(WI, 0))
+                .add(wavePos.add(WI, -WI * 2))
+                .add(wavePos.add(2 * WI, -WI * 2))
+                .add(wavePos.add(2 * WI, 0))
+                .add(wavePos.add(3 * WI, 0))
+                .add(wavePos.add(3 * WI, -WI * 2))
+                .add(wavePos.add(4 * WI, -WI * 2)), Style.THIN);
     }
 }

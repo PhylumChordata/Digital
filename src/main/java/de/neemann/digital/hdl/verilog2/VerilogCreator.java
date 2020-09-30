@@ -5,6 +5,7 @@
  */
 package de.neemann.digital.hdl.verilog2;
 
+import de.neemann.digital.draw.library.ElementLibrary;
 import de.neemann.digital.hdl.vhdl2.*;
 import de.neemann.digital.core.Bits;
 import de.neemann.digital.core.wiring.Splitter;
@@ -33,9 +34,9 @@ public class VerilogCreator {
      *
      * @param out the output stream
      */
-    VerilogCreator(CodePrinter out) {
+    VerilogCreator(CodePrinter out, ElementLibrary lib) {
         this.out = out;
-        library = new VerilogLibrary();
+        library = new VerilogLibrary(lib);
         customPrinted = new HashSet<>();
     }
 
@@ -55,12 +56,17 @@ public class VerilogCreator {
     /**
      * Returns the verilog type for a signal
      *
-     * @param dir  the signal type (input or output)
+     * @param def  the signal type (input or output) used if dir is not "inout"
+     * @param dir  used to check if direction is "inout"
      * @param bits the number of bits
      * @return the verilog signal type
      */
-    public static String getType(HDLPort.Direction dir, int bits) {
-        String result = (dir == HDLPort.Direction.IN)? "input" : "output";
+    public static String getType(HDLPort.Direction def, HDLPort.Direction dir, int bits) {
+        String result;
+        if (dir == HDLPort.Direction.INOUT)
+            result = "inout";
+        else
+            result = (def == HDLPort.Direction.IN) ? "input" : "output";
 
         if (bits > 1) {
             result += " [" + (bits - 1) + ":0]";
@@ -109,7 +115,7 @@ public class VerilogCreator {
      * Prints the given circuit to the output.
      * Also all needed entities are printed.
      *
-     * @param circuit the circuit to print
+     * @param circuit    the circuit to print
      * @param moduleName the module name
      * @throws IOException      IOException
      * @throws HDLException     HDLException
@@ -180,12 +186,12 @@ public class VerilogCreator {
 
         for (HDLPort i : circuit.getInputs()) {
             sep.check();
-            out.print(getType(HDLPort.Direction.IN, i.getBits())).print(" ").print(i.getName());
+            out.print(getType(HDLPort.Direction.IN, i.getDirection(), i.getBits())).print(" ").print(i.getName());
             if (i.hasDescription()) sep.setLineFinalizer(ou -> ou.printComment(" // ", i.getDescription()));
         }
         for (HDLPort o : circuit.getOutputs()) {
             sep.check();
-            out.print(getType(HDLPort.Direction.OUT, o.getBits())).print(" ").print(o.getName());
+            out.print(getType(HDLPort.Direction.OUT, o.getDirection(), o.getBits())).print(" ").print(o.getName());
             if (o.hasDescription()) sep.setLineFinalizer(ou -> ou.printComment(" // ", o.getDescription()));
         }
         sep.close();
@@ -193,16 +199,17 @@ public class VerilogCreator {
 
     private void printManyToOne(HDLNodeSplitterManyToOne node) throws IOException, HDLException {
         String target = node.getTargetSignal();
-
-        for (HDLNodeSplitterManyToOne.SplitterAssignment in : node) {
-            out.print("assign ").print(target).print("[");
-            if (in.getLsb() == in.getMsb())
-                out.print(in.getLsb());
-            else
-                out.print(in.getMsb()).print(":").print(in.getLsb());
-            out.print("] = ");
-            printExpression(in.getExpression());
-            out.println(";");
+        if (target != null) {
+            for (HDLNodeSplitterManyToOne.SplitterAssignment in : node) {
+                out.print("assign ").print(target).print("[");
+                if (in.getLsb() == in.getMsb())
+                    out.print(in.getLsb());
+                else
+                    out.print(in.getMsb()).print(":").print(in.getLsb());
+                out.print("] = ");
+                printExpression(in.getExpression());
+                out.println(";");
+            }
         }
     }
 
@@ -243,7 +250,7 @@ public class VerilogCreator {
         String instanceName = entityName.trim() + "_i" + num;
 
         out.print(instanceName + " ")
-           .println("(");
+                .println("(");
 
         out.inc();
         Separator sep = new Separator(out, ",\n");
@@ -259,14 +266,22 @@ public class VerilogCreator {
                 sep.check();
                 out.print(".").print(o.getName()).print("( ").print(o.getNet().getName()).print(" )");
             }
+
+        for (HDLPort o : node.getInOutputs())
+            if (o.getNet() != null) {
+                sep.check();
+                out.print(".").print(o.getName()).print("( ").print(o.getNet().getName()).print(" )");
+            }
         out.dec();
         out.println().println(");");
     }
 
     private void printExpression(HDLNodeAssignment node) throws IOException, HDLException {
-        out.print("assign ").print(node.getTargetNet().getName()).print(" = ");
-        printExpression(node.getExpression());
-        out.println(";");
+        if (node.getTargetNet() != null) {
+            out.print("assign ").print(node.getTargetNet().getName()).print(" = ");
+            printExpression(node.getExpression());
+            out.println(";");
+        }
     }
 
     private void printExpression(Expression expression) throws IOException, HDLException {

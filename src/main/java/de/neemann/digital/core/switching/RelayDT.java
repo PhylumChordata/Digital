@@ -10,19 +10,21 @@ import de.neemann.digital.core.element.Element;
 import de.neemann.digital.core.element.ElementAttributes;
 import de.neemann.digital.core.element.ElementTypeDescription;
 import de.neemann.digital.core.element.Keys;
+import de.neemann.digital.core.stats.Countable;
 
 import static de.neemann.digital.core.element.PinInfo.input;
 
 /**
  * A simple relay.
  */
-public class RelayDT extends Node implements Element {
+public class RelayDT extends Node implements Element, Countable {
 
     /**
      * The relays description
      */
     public static final ElementTypeDescription DESCRIPTION = new ElementTypeDescription(RelayDT.class, input("in1"), input("in2"))
             .addAttribute(Keys.ROTATE)
+            .addAttribute(Keys.MIRROR)
             .addAttribute(Keys.BITS)
             .addAttribute(Keys.LABEL)
             .addAttribute(Keys.POLES);
@@ -75,5 +77,15 @@ public class RelayDT extends Node implements Element {
      */
     public boolean isClosed() {
         return s.isClosed();
+    }
+
+    @Override
+    public int getDataBits() {
+        return s.getDataBits();
+    }
+
+    @Override
+    public int getInputsCount() {
+        return s.getInputsCount();
     }
 }

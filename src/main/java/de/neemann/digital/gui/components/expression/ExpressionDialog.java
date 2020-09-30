@@ -24,6 +24,8 @@ import java.awt.event.ActionEvent;
 import java.io.File;
 import java.util.ArrayList;
 
+import static de.neemann.digital.gui.components.EditorFactory.addF1Traversal;
+
 /**
  * Dialog to enter an expression.
  * Creates a new frame with a circuit generated from the entered expression.
@@ -36,13 +38,14 @@ public class ExpressionDialog extends JDialog {
      * @param parent       the parent
      * @param library      the library to use
      * @param shapeFactory the shapeFactory used for new circuits
-     * @param baseFilename filname used as base for file operations
+     * @param baseFilename filename used as base for file operations
      */
     public ExpressionDialog(Main parent, ElementLibrary library, ShapeFactory shapeFactory, File baseFilename) {
         super(parent, Lang.get("expression"), false);
 
-        JTextField text = new JTextField("(C ∨ B) ∧ (A ∨ C) ∧ (B ∨ !C) * (C + !A)", 40);
-        getContentPane().add(text, BorderLayout.CENTER);
+        String exampleEquation = "(C ∨ B) ∧ (A ∨ C) ∧ (B ∨ !C) * (C + !A)";
+        JTextArea text = addF1Traversal(new JTextArea(exampleEquation, 5, 40));
+        getContentPane().add(new JScrollPane(text), BorderLayout.CENTER);
         getContentPane().add(new JLabel(Lang.get("msg_enterAnExpression")), BorderLayout.NORTH);
 
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
@@ -64,7 +67,7 @@ public class ExpressionDialog extends JDialog {
             public void actionPerformed(ActionEvent e) {
                 try {
                     ArrayList<Expression> expList = new Parser(text.getText()).parse();
-                    CircuitBuilder circuitBuilder = new CircuitBuilder(shapeFactory);
+                    CircuitBuilder circuitBuilder = new CircuitBuilder(shapeFactory).setResolveLocalVars(true);
                     if (expList.size() == 1)
                         circuitBuilder.addCombinatorial("Y", expList.get(0));
                     else

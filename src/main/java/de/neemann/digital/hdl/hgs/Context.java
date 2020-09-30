@@ -13,15 +13,12 @@ import de.neemann.digital.lang.Lang;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.StringTokenizer;
+import java.util.*;
 
 /**
  * The evaluation context
  */
-public class Context {
+public class Context implements HGSMap {
     private static final Logger LOGGER = LoggerFactory.getLogger(Context.class);
     // declare some functions which are always present
     private static final HashMap<String, InnerFunction> BUILT_IN = new HashMap<>();
@@ -32,6 +29,7 @@ public class Context {
         BUILT_IN.put("floor", new FunctionFloor());
         BUILT_IN.put("round", new FunctionRound());
         BUILT_IN.put("float", new FunctionFloat());
+        BUILT_IN.put("int", new FunctionInt());
         BUILT_IN.put("min", new FunctionMin());
         BUILT_IN.put("max", new FunctionMax());
         BUILT_IN.put("abs", new FunctionAbs());
@@ -44,6 +42,7 @@ public class Context {
         BUILT_IN.put("panic", new FunctionPanic());
         BUILT_IN.put("output", new FunctionOutput());
         BUILT_IN.put("splitString", new FunctionSplitString());
+        BUILT_IN.put("identifier", new FunctionIdentifier());
         BUILT_IN.put("sizeOf", new Func(1, args -> Value.toArray(args[0]).hgsArraySize()));
         BUILT_IN.put("newMap", new Func(0, args -> new HashMap()));
         BUILT_IN.put("newList", new Func(0, args -> new ArrayList()));
@@ -51,7 +50,7 @@ public class Context {
 
     private final Context parent;
     private final StringBuilder code;
-    private HashMap<String, Object> map;
+    private final HashMap<String, Object> map;
     private boolean loggingEnabled = true;
 
     /**
@@ -277,6 +276,11 @@ public class Context {
             throw new HGSEvalException("Variable '" + funcName + "' is not a function");
     }
 
+    @Override
+    public Object hgsMapGet(String key) {
+        return map.get(key);
+    }
+
     private static final class FunctionPrint extends InnerFunction {
         private FunctionPrint() {
             super(-1);
@@ -441,6 +445,17 @@ public class Context {
         }
     }
 
+    private static final class FunctionInt extends Function {
+        private FunctionInt() {
+            super(1);
+        }
+
+        @Override
+        protected Object f(Object... args) throws HGSEvalException {
+            return Value.toInt(args[0]);
+        }
+    }
+
     private static final class FunctionBitsNeeded extends Function {
 
         private FunctionBitsNeeded() {
@@ -481,6 +496,32 @@ public class Context {
             while (st.hasMoreTokens())
                 list.add(st.nextToken());
             return list;
+        }
+    }
+
+    private static final class FunctionIdentifier extends Function {
+
+        private FunctionIdentifier() {
+            super(1);
+        }
+
+        @Override
+        protected Object f(Object... args) {
+            String str = args[0].toString();
+            StringBuilder sb = new StringBuilder(str.length());
+            for (int p = 0; p < str.length(); p++) {
+                char c = str.charAt(p);
+                if (c >= '0' && c <= '9') {
+                    if (sb.length() == 0)
+                        sb.append('n');
+                    sb.append(c);
+                } else if ((c >= 'A' && c <= 'Z')
+                        || (c >= 'a' && c <= 'z')
+                        || c == '_') {
+                    sb.append(c);
+                }
+            }
+            return sb.toString();
         }
     }
 
@@ -557,4 +598,17 @@ public class Context {
         }
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Context context = (Context) o;
+        return Objects.equals(parent, context.parent)
+                && map.equals(context.map);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(parent, map);
+    }
 }

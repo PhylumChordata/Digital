@@ -12,6 +12,7 @@ import de.neemann.digital.draw.graphics.*;
 import de.neemann.digital.gui.SaveAsHelper;
 import de.neemann.digital.gui.Settings;
 import de.neemann.digital.gui.components.OrderMerger;
+import de.neemann.digital.gui.components.table.ShowStringDialog;
 import de.neemann.digital.gui.components.testing.ValueTableDialog;
 import de.neemann.digital.lang.Lang;
 import de.neemann.gui.IconCreator;
@@ -41,6 +42,8 @@ public class GraphDialog extends JDialog implements Observer {
     private static final Icon ICON_ZOOM_IN = IconCreator.create("View-zoom-in.png");
     private static final Icon ICON_ZOOM_OUT = IconCreator.create("View-zoom-out.png");
 
+    private ValueTable.ColumnInfo[] columnInfo;
+
     /**
      * Creates a instance prepared for "live logging"
      *
@@ -58,6 +61,7 @@ public class GraphDialog extends JDialog implements Observer {
             title = Lang.get("win_measures_fullstep");
 
         ArrayList<Signal> signals = model.getSignalsCopy();
+        signals.removeIf(signal -> !signal.isShowInGraph());
         new OrderMerger<String, Signal>(ordering) {
             @Override
             public boolean equals(Signal a, String b) {
@@ -65,23 +69,34 @@ public class GraphDialog extends JDialog implements Observer {
             }
         }.order(signals);
 
+
         ValueTableObserver valueTableObserver = new ValueTableObserver(microStep, signals, MAX_SAMPLE_SIZE);
 
-        GraphDialog graphDialog = new GraphDialog(owner, title, valueTableObserver.getLogData(), model);
+        GraphDialog graphDialog = new GraphDialog(owner, title, valueTableObserver.getLogData(), model)
+                .setColumnInfo(createColumnsInfo(signals));
 
         graphDialog.addWindowListener(new WindowAdapter() {
             @Override
             public void windowOpened(WindowEvent e) {
-                model.access(() -> model.addObserver(valueTableObserver));
+                model.modify(() -> model.addObserver(valueTableObserver));
             }
 
             @Override
             public void windowClosed(WindowEvent e) {
-                model.access(() -> model.removeObserver(valueTableObserver));
+                model.modify(() -> model.removeObserver(valueTableObserver));
             }
         });
 
         return graphDialog;
+    }
+
+    private static ValueTable.ColumnInfo[] createColumnsInfo(ArrayList<Signal> signals) {
+        ValueTable.ColumnInfo[] info = new ValueTable.ColumnInfo[signals.size()];
+        for (int i = 0; i < signals.size(); i++) {
+            Signal s = signals.get(i);
+            info[i] = new ValueTable.ColumnInfo(s.getFormat(), s.getValue().getBits());
+        }
+        return info;
     }
 
     /**
@@ -128,13 +143,13 @@ public class GraphDialog extends JDialog implements Observer {
             public void actionPerformed(ActionEvent e) {
                 graphComponent.scale(1.25f, getWidth() / 2);
             }
-        }.setAccelerator("control PLUS");
+        }.setAcceleratorCTRLplus("PLUS");
         ToolTipAction zoomOut = new ToolTipAction(Lang.get("menu_zoomOut"), ICON_ZOOM_OUT) {
             @Override
             public void actionPerformed(ActionEvent e) {
                 graphComponent.scale(0.8f, getWidth() / 2);
             }
-        }.setAccelerator("control MINUS");
+        }.setAcceleratorCTRLplus("MINUS");
 
         showTable = new ToolTipAction(Lang.get("menu_showDataAsTable")) {
             @Override
@@ -162,11 +177,10 @@ public class GraphDialog extends JDialog implements Observer {
                 JFileChooser fileChooser = new MyFileChooser();
                 fileChooser.setFileFilter(new FileNameExtensionFilter("Comma Separated Values", "csv"));
                 new SaveAsHelper(GraphDialog.this, fileChooser, "csv")
-                        .checkOverwrite(logData::saveCSV);
+                        .checkOverwrite(file -> logData.saveCSV(file, columnInfo));
             }
         }.setToolTip(Lang.get("menu_saveData_tt")).createJMenuItem());
-        file.add(new ExportAction(Lang.get("menu_exportSVG"), GraphicSVGIndex::new).createJMenuItem());
-        file.add(new ExportAction(Lang.get("menu_exportSVGLaTex"), GraphicSVGLaTeX::new).createJMenuItem());
+        file.add(new ExportAction(Lang.get("menu_exportSVG"), GraphicSVG::new).createJMenuItem());
 
         JMenu view = new JMenu(Lang.get("menu_view"));
         bar.add(view);
@@ -176,9 +190,27 @@ public class GraphDialog extends JDialog implements Observer {
         view.addSeparator();
         view.add(showTable.createJMenuItem());
 
+        JMenu help = new JMenu(Lang.get("menu_help"));
+        bar.add(help);
+        help.add(new ToolTipAction(Lang.get("btn_help")) {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                new ShowStringDialog(
+                        GraphDialog.this,
+                        Lang.get("msg_graphHelpTitle"),
+                        Lang.get("msg_graphHelp"), true)
+                        .setVisible(true);
+            }
+        }.createJMenuItem());
+
         setJMenuBar(bar);
         pack();
         setLocationRelativeTo(owner);
+    }
+
+    private GraphDialog setColumnInfo(ValueTable.ColumnInfo[] columnInfo) {
+        this.columnInfo = columnInfo;
+        return this;
     }
 
     private final AtomicBoolean paintPending = new AtomicBoolean();

@@ -16,31 +16,48 @@ import java.io.File;
  */
 public class Key<VALUE> {
     private final String key;
-    private final VALUE def;
+    private final DefaultFactory<VALUE> defFactory;
     private final String langKey;
     private boolean groupEditAllowed = false;
     private Key dependsOn;
     private CheckEnabled checkEnabled;
+    private boolean isSecondary;
+    private boolean requiresRestart = false;
+    private boolean requiresRepaint = false;
+    private String panelId;
 
     // Both values are always null in digital.
     // Both are only used within a custom implemented component.
     private String name;
     private String description;
-    private boolean isSecondary;
-    private boolean requiresRestart = false;
+    private boolean adaptiveIntFormat;
 
     /**
-     * Creates a new Key
+     * Creates a new Key.
+     * Use this constructor only if the def value is not mutable!
      *
      * @param key the key
      * @param def the default value
      */
     public Key(String key, VALUE def) {
-        this.key = key;
-        langKey = "key_" + key.replace(" ", "");
+        this(key, () -> def);
         if (def == null)
             throw new NullPointerException();
-        this.def = def;
+    }
+
+    /**
+     * Creates a new Key.
+     * Use this constructor if the def value is mutable!
+     *
+     * @param key        the key
+     * @param defFactory the factory to create a default value
+     */
+    public Key(String key, DefaultFactory<VALUE> defFactory) {
+        this.key = key;
+        langKey = "key_" + key.replace(" ", "");
+        if (defFactory == null)
+            throw new NullPointerException();
+        this.defFactory = defFactory;
     }
 
     /**
@@ -68,14 +85,14 @@ public class Key<VALUE> {
      * @return the default value of this key
      */
     public VALUE getDefault() {
-        return def;
+        return defFactory.createDefault();
     }
 
     /**
      * @return The values class
      */
     public Class getValueClass() {
-        return def.getClass();
+        return getDefault().getClass();
     }
 
     @Override
@@ -204,7 +221,7 @@ public class Key<VALUE> {
     }
 
     /**
-     * Called if this setting needs a restart.
+     * Called if the modification of this setting needs a restart.
      *
      * @return this for chained calls
      */
@@ -218,6 +235,62 @@ public class Key<VALUE> {
      */
     public boolean getRequiresRestart() {
         return requiresRestart;
+    }
+
+    /**
+     * Called if this setting needs a repaint.
+     * This means, that the circuit graphics became invalid
+     * if this setting has changed.
+     *
+     * @return this for chained calls
+     */
+    public Key<VALUE> setRequiresRepaint() {
+        requiresRepaint = true;
+        return this;
+    }
+
+    /**
+     * @return true if changing this value needs a repaint
+     */
+    public boolean getRequiresRepaint() {
+        return requiresRepaint;
+    }
+
+    /**
+     * Enables an adaptive int format in number editors.
+     * This means that the string representation of the number is controlled
+     * by the IntFormat stored in the elements attributes.
+     *
+     * @return this for chained calls
+     */
+    public Key<VALUE> setAdaptiveIntFormat() {
+        adaptiveIntFormat = true;
+        return this;
+    }
+
+    /**
+     * @return true if adaptive int format is required
+     */
+    public boolean isAdaptiveIntFormat() {
+        return adaptiveIntFormat;
+    }
+
+    /**
+     * Moves this key to the panel with the given id
+     *
+     * @param panelId the panel id
+     * @return this for chained calls
+     */
+    public Key<VALUE> setPanelId(String panelId) {
+        this.panelId = panelId;
+        return this;
+    }
+
+    /**
+     * @return the panel id, null if no panel is set
+     */
+    public String getPanelId() {
+        return panelId;
     }
 
     /**
@@ -408,7 +481,7 @@ public class Key<VALUE> {
      */
     public static final class LongString extends Key<String> {
         private int rows = 6;
-        private int columns = 30;
+        private int columns = 0;
         private boolean lineNumbers = false;
 
         /**
@@ -418,6 +491,16 @@ public class Key<VALUE> {
          */
         public LongString(String key) {
             super(key, "");
+        }
+
+        /**
+         * Creates a new Key
+         *
+         * @param key the key
+         * @param def the default value
+         */
+        public LongString(String key, String def) {
+            super(key, def);
         }
 
         /**
@@ -489,5 +572,19 @@ public class Key<VALUE> {
          * @return true if editor is enabled
          */
         boolean isEnabled(T t);
+    }
+
+    /**
+     * Used to provide a default value if the value is mutable.
+     *
+     * @param <VALUE> the type of the value
+     */
+    public interface DefaultFactory<VALUE> {
+        /**
+         * Called to create a new default value.
+         *
+         * @return the default value
+         */
+        VALUE createDefault();
     }
 }

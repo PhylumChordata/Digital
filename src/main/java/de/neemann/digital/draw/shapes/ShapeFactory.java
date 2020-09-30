@@ -19,7 +19,9 @@ import de.neemann.digital.core.switching.*;
 import de.neemann.digital.core.wiring.*;
 import de.neemann.digital.draw.elements.PinException;
 import de.neemann.digital.draw.elements.Tunnel;
+import de.neemann.digital.draw.graphics.Style;
 import de.neemann.digital.draw.library.ElementLibrary;
+import de.neemann.digital.draw.library.ElementTypeDescriptionCustom;
 import de.neemann.digital.draw.library.JarComponentManager;
 import de.neemann.digital.draw.shapes.custom.CustomShape;
 import de.neemann.digital.draw.shapes.custom.CustomShapeDescription;
@@ -32,6 +34,9 @@ import de.neemann.digital.lang.Lang;
 import de.neemann.digital.testing.TestCaseElement;
 
 import java.util.HashMap;
+
+import static de.neemann.digital.draw.shapes.GenericShape.SIZE;
+import static de.neemann.digital.draw.shapes.GenericShape.SIZE2;
 
 /**
  * Used to create a shape matching a given name
@@ -78,7 +83,7 @@ public final class ShapeFactory {
                     (attributes, inputs, outputs) -> {
                         final boolean ws = attributes.get(Keys.WIDE_SHAPE);
                         return new GenericShape(ws ? "1" : "", inputs, outputs)
-                                .setTopBottomBorder(ws ? GenericShape.SIZE : GenericShape.SIZE2)
+                                .setTopBottomBorder(ws ? SIZE : SIZE2)
                                 .invert(true)
                                 .setWide(ws);
                     });
@@ -105,6 +110,7 @@ public final class ShapeFactory {
         map.put(RGBLED.DESCRIPTION.getName(), RGBLEDShape::new);
         map.put(Out.POLARITYAWARELEDDESCRIPTION.getName(), PolarityAwareLEDShape::new);
         map.put(Button.DESCRIPTION.getName(), ButtonShape::new);
+        map.put(ButtonLED.DESCRIPTION.getName(), ButtonLEDShape::new);
         map.put(Probe.DESCRIPTION.getName(), ProbeShape::new);
         map.put(Clock.DESCRIPTION.getName(), ClockShape::new);
         map.put(Out.SEVENDESCRIPTION.getName(), SevenSegShape::new);
@@ -112,6 +118,8 @@ public final class ShapeFactory {
         map.put(Out.SIXTEENDESCRIPTION.getName(), SixteenShape::new);
         map.put(DummyElement.DATADESCRIPTION.getName(), DataShape::new);
         map.put(RotEncoder.DESCRIPTION.getName(), RotEncoderShape::new);
+        map.put(StepperMotorUnipolar.DESCRIPTION.getName(), StepperMotorShape::new);
+        map.put(StepperMotorBipolar.DESCRIPTION.getName(), StepperMotorShape::new);
         map.put(DipSwitch.DESCRIPTION.getName(), DipSwitchShape::new);
 
         map.put(Switch.DESCRIPTION.getName(), SwitchShape::new);
@@ -157,6 +165,7 @@ public final class ShapeFactory {
         map.put(DiodeBackward.DESCRIPTION.getName(), DiodeBackwardShape::new);
         map.put(PullUp.DESCRIPTION.getName(), PullUpShape::new);
         map.put(PullDown.DESCRIPTION.getName(), PullDownShape::new);
+        map.put(PinControl.DESCRIPTION.getName(), PinControlShape::new);
 
         // disables string formatting for external components, see #272
         map.put(External.DESCRIPTION.getName(),
@@ -165,7 +174,7 @@ public final class ShapeFactory {
                                 attributes.getLabel(), true, attributes.get(Keys.WIDTH)) {
                             @Override
                             public String format(String s) {
-                                return "\\" + s;
+                                return s.replace("_", "\\_");
                             }
                         });
 
@@ -191,9 +200,9 @@ public final class ShapeFactory {
                     throw new NodeException(Lang.get("err_noShapeFoundFor_N", elementName));
                 else {
                     ElementTypeDescription pt = library.getElementType(elementName);
-                    if (pt instanceof ElementLibrary.ElementTypeDescriptionCustom) {
+                    if (pt instanceof ElementTypeDescriptionCustom) {
                         // Custom component
-                        ElementLibrary.ElementTypeDescriptionCustom customDescr = (ElementLibrary.ElementTypeDescriptionCustom) pt;
+                        ElementTypeDescriptionCustom customDescr = (ElementTypeDescriptionCustom) pt;
                         CustomCircuitShapeType shapeType = customDescr.getAttributes().get(Keys.SHAPE_TYPE);
                         final CustomCircuitShapeType localShapeType = elementAttributes.get(Keys.SHAPE_TYPE);
                         if (!localShapeType.equals(CustomCircuitShapeType.DEFAULT))
@@ -211,7 +220,7 @@ public final class ShapeFactory {
                                 return new LayoutShape(customDescr, elementAttributes);
                             case CUSTOM:
                                 final CustomShapeDescription customShapeDescription = customDescr.getAttributes().get(Keys.CUSTOM_SHAPE);
-                                if (customShapeDescription != CustomShapeDescription.EMPTY)
+                                if (!customShapeDescription.isEmpty())
                                     return new CustomShape(customShapeDescription, elementAttributes.getLabel(),
                                             pt.getInputDescription(elementAttributes),
                                             pt.getOutputDescriptions(elementAttributes));
@@ -223,6 +232,7 @@ public final class ShapeFactory {
                                         elementAttributes.getLabel(),
                                         true,
                                         customDescr.getAttributes().get(Keys.WIDTH))
+                                        .setTopBottomBorder(SIZE2 + Style.MAXLINETHICK)
                                         .setColor(customDescr.getAttributes().get(Keys.BACKGROUND_COLOR));
                         }
                     } else {

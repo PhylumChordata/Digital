@@ -1,51 +1,81 @@
 /*
- * Copyright (c) 2016 Helmut Neemann
+ * Copyright (c) 2020 Helmut Neemann.
  * Use of this source code is governed by the GPL v3 license
  * that can be found in the LICENSE file.
  */
 package de.neemann.digital.core;
 
+import java.util.Objects;
+
 /**
- * A event fired by the model
+ * a model event
  */
-public enum ModelEvent {
+public class ModelEvent {
+    /**
+     * Shorthand for a ModelEventType.STARTED event
+     */
+    public static final ModelEvent STARTED = new ModelEvent(ModelEventType.STARTED);
+    /**
+     * Shorthand for a ModelEventType.STOPPED event
+     */
+    public static final ModelEvent CLOSED = new ModelEvent(ModelEventType.CLOSED);
+    /**
+     * Shorthand for a ModelEventType.STEP event
+     */
+    public static final ModelEvent STEP = new ModelEvent(ModelEventType.STEP);
+    /**
+     * Shorthand for a ModelEventType.MICROSTEP event
+     */
+    public static final ModelEvent MICROSTEP = new ModelEvent(ModelEventType.MICROSTEP);
+    /**
+     * Shorthand for a ModelEventType.FASTRUN event
+     */
+    public static final ModelEvent FASTRUN = new ModelEvent(ModelEventType.FASTRUN);
+    /**
+     * Shorthand for a ModelEventType.BREAK event
+     */
+    public static final ModelEvent BREAK = new ModelEvent(ModelEventType.BREAK);
+    /**
+     * Shorthand for a ModelEventType.EXTERNALCHANGE event
+     */
+    public static final ModelEvent EXTERNALCHANGE = new ModelEvent(ModelEventType.EXTERNALCHANGE);
+
+    private final ModelEventType type;
+    private Exception cause;
+
+    private ModelEvent(ModelEventType type) {
+        this.type = type;
+    }
+
+    ModelEvent(Exception cause) {
+        this(ModelEventType.ERROR_OCCURRED);
+        this.cause = cause;
+    }
 
     /**
-     * Is fired after the model had became stable after first stabilization.
+     * @return the event type
      */
-    STARTED,
+    public ModelEventType getType() {
+        return type;
+    }
 
     /**
-     * The model has stopped.
+     * @return the cause in case of an error
      */
-    STOPPED,
+    public Exception getCause() {
+        return cause;
+    }
 
-    /**
-     * Is fired if the model had performed a full step.
-     * This means a change is propagated through all nodes, and the model has
-     * become stable again.
-     */
-    STEP,
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        ModelEvent that = (ModelEvent) o;
+        return type == that.type;
+    }
 
-    /**
-     * Fast run is started.
-     */
-    FASTRUN,
-
-    /**
-     * A break is detected.
-     */
-    BREAK,
-
-    /**
-     * Here was a manual change to the model by the user.
-     */
-    MANUALCHANGE,
-
-    /**
-     * If fired if a micro step is calculated.
-     * This means the aktual nodes are calculated, but not the effected nodes.
-     */
-    MICROSTEP
-
+    @Override
+    public int hashCode() {
+        return Objects.hash(type);
+    }
 }

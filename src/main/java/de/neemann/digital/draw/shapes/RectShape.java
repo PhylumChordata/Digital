@@ -5,7 +5,6 @@
  */
 package de.neemann.digital.draw.shapes;
 
-import de.neemann.digital.core.Observer;
 import de.neemann.digital.core.element.ElementAttributes;
 import de.neemann.digital.core.element.Keys;
 import de.neemann.digital.core.element.PinDescriptions;
@@ -19,7 +18,7 @@ import static de.neemann.digital.draw.shapes.GenericShape.SIZE;
 /**
  * Simple text
  */
-public class RectShape implements Shape, DecoratingShape {
+public class RectShape implements Shape {
     private final String label;
     private final int width;
     private final int height;
@@ -58,7 +57,7 @@ public class RectShape implements Shape, DecoratingShape {
     }
 
     @Override
-    public Interactor applyStateMonitor(IOState ioState, Observer guiObserver) {
+    public Interactor applyStateMonitor(IOState ioState) {
         return null;
     }
 
@@ -80,7 +79,7 @@ public class RectShape implements Shape, DecoratingShape {
 
         Style style = Style.NORMAL.deriveFontStyle(fontSize, true);
         if (!label.isEmpty())
-            graphic.drawText(pos, pos.add(1, 0), label, orientation, style);
+            graphic.drawText(pos, label, orientation, style);
 
         graphic.drawPolygon(new Polygon(true)
                 .add(0, 0)
@@ -88,4 +87,10 @@ public class RectShape implements Shape, DecoratingShape {
                 .add(width * SIZE, height * SIZE)
                 .add(0, height * SIZE), Style.DASH);
     }
+
+    @Override
+    public boolean onlyBorderClickable() {
+        return true;
+    }
+
 }

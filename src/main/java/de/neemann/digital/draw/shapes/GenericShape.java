@@ -5,7 +5,6 @@
  */
 package de.neemann.digital.draw.shapes;
 
-import de.neemann.digital.core.Observer;
 import de.neemann.digital.core.element.PinDescriptions;
 import de.neemann.digital.draw.elements.IOState;
 import de.neemann.digital.draw.elements.Pin;
@@ -195,7 +194,7 @@ public class GenericShape implements Shape {
     }
 
     @Override
-    public Interactor applyStateMonitor(IOState ioState, Observer guiObserver) {
+    public Interactor applyStateMonitor(IOState ioState) {
         return null;
     }
 
@@ -212,7 +211,7 @@ public class GenericShape implements Shape {
                 .add(SIZE * width - 1, yBottom)
                 .add(1, yBottom);
 
-        if (color != Color.WHITE && !graphic.isFlagSet(Graphic.LATEX))
+        if (color != Color.WHITE)
             graphic.drawPolygon(polygon, Style.NORMAL.deriveFillStyle(color));
         graphic.drawPolygon(polygon, Style.NORMAL);
 
@@ -226,7 +225,7 @@ public class GenericShape implements Shape {
 
         if (label != null) {
             Vector pos = new Vector(SIZE2 * width, -topBottomBorder - 8);
-            graphic.drawText(pos, pos.add(1, 0), label, Orientation.CENTERBOTTOM, Style.NORMAL);
+            graphic.drawText(pos, label, Orientation.CENTERBOTTOM, Style.NORMAL);
         }
 
         if (showPinLabels) {
@@ -243,18 +242,18 @@ public class GenericShape implements Shape {
                                 .add(p.getPos().add(dx - 3, -triangle)), Style.THIN);
                         dx += triangle;
                     }
-                    graphic.drawText(p.getPos().add(dx, 0), p.getPos().add(dx + 1, 0), format(p.getName()), Orientation.LEFTCENTER, Style.SHAPE_PIN);
+                    graphic.drawText(p.getPos().add(dx, 0), format(p.getName()), Orientation.LEFTCENTER, Style.SHAPE_PIN);
                 } else
-                    graphic.drawText(p.getPos().add(-4, 0), p.getPos().add(5, 0), format(p.getName()), Orientation.RIGHTCENTER, Style.SHAPE_PIN);
+                    graphic.drawText(p.getPos().add(-4, 0), format(p.getName()), Orientation.RIGHTCENTER, Style.SHAPE_PIN);
             }
         }
         if (name.length() > 0) {
             if (name.length() <= 3 && !showPinLabels) {
                 Vector pos = new Vector(SIZE2 * width, -topBottomBorder + 4);
-                graphic.drawText(pos, pos.add(1, 0), name, Orientation.CENTERTOP, Style.NORMAL);
+                graphic.drawText(pos, name, Orientation.CENTERTOP, Style.NORMAL);
             } else {
                 Vector pos = new Vector(SIZE2 * width, yBottom + 4);
-                graphic.drawText(pos, pos.add(1, 0), name, Orientation.CENTERTOP, Style.SHAPE_PIN);
+                graphic.drawText(pos, name, Orientation.CENTERTOP, Style.SHAPE_PIN);
             }
         }
 

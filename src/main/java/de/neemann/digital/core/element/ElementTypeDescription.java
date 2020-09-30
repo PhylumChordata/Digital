@@ -21,10 +21,12 @@ public class ElementTypeDescription {
     private static final String PINSEPARATOR = "_pin_";
     private final String name;
     private final String langKey;
+    private ClassLoader classLoader;
     private String shortName;
-    private final ElementFactory elementFactory;
+    private ElementFactory elementFactory;
     private final PinDescriptions inputPins;
     private final ArrayList<Key> attributeList;
+    private boolean supportsHDL;
 
     /**
      * Creates a new ElementTypeDescription
@@ -52,6 +54,7 @@ public class ElementTypeDescription {
                 throw new RuntimeException(Lang.get("err_couldNotCreateElement_N", name), e);
             }
         }, inputPins);
+        classLoader = clazz.getClassLoader();
     }
 
     /**
@@ -70,6 +73,15 @@ public class ElementTypeDescription {
             if (p.getDirection() != PinDescription.Direction.input)
                 throw new RuntimeException("pin direction error");
         attributeList = new ArrayList<>();
+    }
+
+    /**
+     * Sets the factory to create elements.
+     *
+     * @param elementFactory the factory
+     */
+    public void setElementFactory(ElementFactory elementFactory) {
+        this.elementFactory = elementFactory;
     }
 
     /**
@@ -125,10 +137,11 @@ public class ElementTypeDescription {
     public String getDescription(ElementAttributes elementAttributes) {
         String d = Lang.getNull(langKey + "_tt");
         if (d == null) {
-            return getTranslatedName();
-        } else {
-            return d;
+            d = getTranslatedName();
         }
+        if (supportsHDL)
+            d += " " + Lang.get("msg_supportsHDL");
+        return d;
     }
 
     /**
@@ -143,6 +156,23 @@ public class ElementTypeDescription {
     public <VALUE> ElementTypeDescription addAttribute(Key<VALUE> key) {
         attributeList.add(key);
         return this;
+    }
+
+    /**
+     * Used to flag this elements as supporting hdl export
+     *
+     * @return this for chained calls
+     */
+    public ElementTypeDescription supportsHDL() {
+        supportsHDL = true;
+        return this;
+    }
+
+    /**
+     * @return true if the element supports export to HDL.
+     */
+    public boolean isSupportsHDL() {
+        return supportsHDL;
     }
 
     /**
@@ -221,5 +251,19 @@ public class ElementTypeDescription {
             return null;
         else
             return inputPins.get(i);
+    }
+
+    /**
+     * @return true if this is a custom component
+     */
+    public boolean isCustom() {
+        return false;
+    }
+
+    /**
+     * @return the class loader, the component is loaded from. Maybe null.
+     */
+    public ClassLoader getClassLoader() {
+        return classLoader;
     }
 }

@@ -7,9 +7,9 @@ package de.neemann.digital.draw.elements;
 
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.io.xml.PrettyPrintWriter;
-import com.thoughtworks.xstream.io.xml.StaxDriver;
-import de.neemann.digital.core.*;
+import de.neemann.digital.XStreamValid;
 import de.neemann.digital.core.Observer;
+import de.neemann.digital.core.*;
 import de.neemann.digital.core.arithmetic.BarrelShifterMode;
 import de.neemann.digital.core.arithmetic.LeftRightFormat;
 import de.neemann.digital.core.element.*;
@@ -21,15 +21,17 @@ import de.neemann.digital.core.memory.DataField;
 import de.neemann.digital.core.memory.DataFieldConverter;
 import de.neemann.digital.core.memory.rom.ROMManger;
 import de.neemann.digital.core.wiring.Clock;
-import de.neemann.digital.draw.graphics.*;
 import de.neemann.digital.draw.graphics.Vector;
+import de.neemann.digital.draw.graphics.*;
 import de.neemann.digital.draw.model.InverterConfig;
 import de.neemann.digital.draw.shapes.CustomCircuitShapeType;
 import de.neemann.digital.draw.shapes.Drawable;
 import de.neemann.digital.draw.shapes.ShapeFactory;
 import de.neemann.digital.draw.shapes.custom.CustomShapeDescription;
+import de.neemann.digital.gui.components.TransformHolder;
 import de.neemann.digital.lang.Lang;
 import de.neemann.digital.testing.TestCaseDescription;
+import de.neemann.digital.testing.TestCaseElement;
 import de.neemann.digital.undo.Copyable;
 import de.neemann.gui.language.Language;
 
@@ -62,7 +64,7 @@ public class Circuit implements Copyable<Circuit> {
      * @return the XStream instance
      */
     public static XStream getxStream() {
-        XStream xStream = new XStream(new StaxDriver());
+        XStream xStream = new XStreamValid();
         xStream.alias("attributes", ElementAttributes.class);
         xStream.alias("visualElement", VisualElement.class);
         xStream.alias("wire", Wire.class);
@@ -98,6 +100,7 @@ public class Circuit implements Copyable<Circuit> {
         xStream.alias("text", CustomShapeDescription.TextHolder.class);
         xStream.alias("polygon", Polygon.class);
         xStream.alias("shapeType", CustomCircuitShapeType.class);
+        xStream.alias("transform", TransformHolder.class);
         xStream.registerConverter(new PolygonConverter());
         return xStream;
     }
@@ -259,7 +262,7 @@ public class Circuit implements Copyable<Circuit> {
         }
 
         // reads the models state which is a fast operation
-        modelSync.access(() -> {
+        modelSync.read(() -> {
             for (Wire w : wires)
                 w.readObservableValues();
             for (VisualElement p : visualElements)
@@ -324,6 +327,29 @@ public class Circuit implements Copyable<Circuit> {
      */
     public ArrayList<VisualElement> getElements() {
         return visualElements;
+    }
+
+    /**
+     * Find specific visual elements
+     *
+     * @param filter the filter
+     * @return the elements
+     */
+    public List<VisualElement> getElements(Circuit.ElementFilter filter) {
+        ArrayList<VisualElement> found = new ArrayList<>();
+        for (VisualElement v : visualElements)
+            if (filter.accept(v))
+                found.add(v);
+        return found;
+    }
+
+    /**
+     * Returns all enabled test cases in the circuit
+     *
+     * @return the test case elements
+     */
+    public List<VisualElement> getTestCases() {
+        return getElements(v -> v.equalsDescription(TestCaseElement.TESTCASEDESCRIPTION) && v.getElementAttributes().get(Keys.ENABLED));
     }
 
     /**
@@ -499,15 +525,21 @@ public class Circuit implements Copyable<Circuit> {
      * @return the first element or null if there is no element at the given position
      */
     public VisualElement getElementAt(Vector pos) {
-        VisualElement pending = null;
-        for (VisualElement element : visualElements) {
-            if (element.matches(pos, false))
-                if (element.isDecoratingShape())
-                    pending = element;
-                else
-                    return element;
-        }
-        return pending;
+        return getElementAt(pos, false);
+    }
+
+    /**
+     * Returns the element at the given position
+     *
+     * @param pos         the cursor position
+     * @param includeText if true the label text is included in matching
+     * @return the first element or null if there is no element at the given position
+     */
+    public VisualElement getElementAt(Vector pos, boolean includeText) {
+        for (VisualElement element : visualElements)
+            if (element.matches(pos, includeText))
+                return element;
+        return null;
     }
 
     /**
@@ -519,18 +551,10 @@ public class Circuit implements Copyable<Circuit> {
      */
     public List<VisualElement> getElementListAt(Vector pos, boolean includeText) {
         ArrayList<VisualElement> list = new ArrayList<>();
-        ArrayList<VisualElement> grList = new ArrayList<>();
-        for (VisualElement element : visualElements) {
+        for (VisualElement element : visualElements)
             if (element.matches(pos, includeText))
-                if (element.isDecoratingShape())
-                    grList.add(element);
-                else
-                    list.add(element);
-        }
-        if (list.isEmpty())
-            return grList;
-        else
-            return list;
+                list.add(element);
+        return list;
     }
 
 
@@ -544,33 +568,7 @@ public class Circuit implements Copyable<Circuit> {
         VisualElement el = getElementAt(pos);
         if (el == null) return false;
 
-        return isPinPos(pos, el);
-    }
-
-    /**
-     * Returns true if the given element has a pin at the given position
-     *
-     * @param pos the position
-     * @param el  the element
-     * @return true if position is a pin position
-     */
-    public boolean isPinPos(Vector pos, VisualElement el) {
-        return getPinAt(pos, el) != null;
-    }
-
-    /**
-     * Returns the pin at the given position
-     *
-     * @param pos position
-     * @param el  the element
-     * @return the pin or null if no pin found
-     */
-    public Pin getPinAt(Vector pos, VisualElement el) {
-        for (Pin p : el.getPins())
-            if (p.getPos().equals(pos))
-                return p;
-
-        return null;
+        return el.isPinPos(pos);
     }
 
     /**
@@ -588,24 +586,17 @@ public class Circuit implements Copyable<Circuit> {
      * @return the matching wire or null
      */
     public Wire getWireAt(Vector pos, int radius) {
+        float minDist = 0;
+        Wire best = null;
         for (Wire w : wires)
-            if (w.contains(pos, radius))
-                return w;
-        return null;
-    }
-
-    /**
-     * Find specific visual elements
-     *
-     * @param filter the filter
-     * @return the elements
-     */
-    public List<VisualElement> findElements(Circuit.ElementFilter filter) {
-        ArrayList<VisualElement> found = new ArrayList<>();
-        for (VisualElement v : visualElements)
-            if (filter.accept(v))
-                found.add(v);
-        return found;
+            if (w.contains(pos, radius)) {
+                float d = w.distance(pos);
+                if (best == null || d < minDist) {
+                    minDist = d;
+                    best = w;
+                }
+            }
+        return best;
     }
 
     /**
@@ -614,7 +605,7 @@ public class Circuit implements Copyable<Circuit> {
      */
     public void clearState() {
         for (VisualElement vp : visualElements)
-            vp.setState(null, null);
+            vp.setState(null);
         for (Wire w : wires)
             w.setValue(null);
     }

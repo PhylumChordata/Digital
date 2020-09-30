@@ -5,7 +5,6 @@
  */
 package de.neemann.digital.draw.shapes;
 
-import de.neemann.digital.core.Observer;
 import de.neemann.digital.core.element.ElementAttributes;
 import de.neemann.digital.core.element.Keys;
 import de.neemann.digital.core.element.PinDescription;
@@ -46,7 +45,7 @@ public class TunnelShape implements Shape {
     }
 
     @Override
-    public InteractorInterface applyStateMonitor(IOState ioState, Observer guiObserver) {
+    public InteractorInterface applyStateMonitor(IOState ioState) {
         return null;
     }
 
@@ -57,6 +56,6 @@ public class TunnelShape implements Shape {
                 .add(WIDTH, HEIGHT)
                 .add(WIDTH, -HEIGHT), Style.NORMAL);
         Vector pos = new Vector(WIDTH + SIZE2 / 2, 0);
-        gr.drawText(pos, pos.add(1, 0), label, Orientation.LEFTCENTER, Style.SHAPE_PIN);
+        gr.drawText(pos, label, Orientation.LEFTCENTER, Style.SHAPE_PIN);
     }
 }

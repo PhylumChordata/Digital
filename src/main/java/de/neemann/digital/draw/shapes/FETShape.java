@@ -5,7 +5,6 @@
  */
 package de.neemann.digital.draw.shapes;
 
-import de.neemann.digital.core.Observer;
 import de.neemann.digital.core.element.ElementAttributes;
 import de.neemann.digital.core.element.PinDescriptions;
 import de.neemann.digital.core.switching.NFET;
@@ -49,9 +48,8 @@ public abstract class FETShape implements Shape {
     }
 
     @Override
-    public InteractorInterface applyStateMonitor(IOState ioState, Observer guiObserver) {
+    public InteractorInterface applyStateMonitor(IOState ioState) {
         fet = (NFET) ioState.getElement();
-        ioState.getInput(0).addObserverToValue(guiObserver);
         return null;
     }
 
@@ -73,7 +71,7 @@ public abstract class FETShape implements Shape {
         graphic.drawLine(new Vector(1, 0), new Vector(1, SIZE * 2), Style.NORMAL);
 
         if (label != null && label.length() > 0)
-            graphic.drawText(new Vector(SIZE + SIZE2, SIZE * 2), new Vector(SIZE * 2, SIZE * 2), label, Orientation.LEFTBOTTOM, Style.SHAPE_PIN);
+            graphic.drawText(new Vector(SIZE + SIZE2, SIZE * 2), label, Orientation.LEFTBOTTOM, Style.SHAPE_PIN);
 
         if (fet != null)
             drawSwitch(graphic);

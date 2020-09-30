@@ -6,6 +6,7 @@
 package de.neemann.digital.core;
 
 /**
+ *
  */
 public enum IntFormat {
     /**
@@ -28,6 +29,10 @@ public enum IntFormat {
      * binary
      */
     bin,
+    /**
+     * octal
+     */
+    oct,
     /**
      * ascii format
      */
@@ -61,7 +66,7 @@ public enum IntFormat {
      */
     public String formatToEdit(Value inValue) {
         if (inValue.isHighZ())
-            return "?";
+            return "Z";
 
         switch (this) {
             case dec:
@@ -72,6 +77,8 @@ public enum IntFormat {
                 return "0x" + toHex(inValue);
             case bin:
                 return "0b" + toBin(inValue);
+            case oct:
+                return "0" + toOct(inValue);
             case ascii:
                 return "'" + (char) inValue.getValue() + "'";
             default:
@@ -83,6 +90,39 @@ public enum IntFormat {
         }
     }
 
+    /**
+     * Return the number of characters required to format a number with the given bit width.
+     *
+     * @param bits the number of bits
+     * @return the number of characters required
+     */
+    public int strLen(int bits) {
+        switch (this) {
+            case dec:
+                return decStrLen(bits);
+            case decSigned:
+                return decStrLen(bits - 1) + 1;
+            case hex:
+                return (bits - 1) / 4 + 3;
+            case bin:
+                return bits + 2;
+            case oct:
+                return (bits - 1) / 3 + 3;
+            case ascii:
+                return 3;
+            default:
+                return (bits - 1) / 4 + 3;
+        }
+    }
+
+    private int decStrLen(int bits) {
+        if (bits == 64)
+            return 20;
+        else if (bits == 63) {
+            return 19;
+        } else
+            return (int) Math.ceil(Math.log10(1L << bits));
+    }
 
     private static final char[] DIGITS = new char[]{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
 
@@ -94,6 +134,19 @@ public enum IntFormat {
         final long value = inValue.getValue();
         for (int i = numChars - 1; i >= 0; i--) {
             int c = (int) ((value >> (i * 4)) & 0xf);
+            sb.append(DIGITS[c]);
+        }
+        return sb.toString();
+    }
+
+    private static String toOct(Value inValue) {
+        final int bits = inValue.getBits();
+        final int numChars = (bits - 1) / 3 + 1;
+
+        StringBuilder sb = new StringBuilder(numChars);
+        final long value = inValue.getValue();
+        for (int i = numChars - 1; i >= 0; i--) {
+            int c = (int) ((value >> (i * 3)) & 0x7);
             sb.append(DIGITS[c]);
         }
         return sb.toString();
@@ -149,5 +202,12 @@ public enum IntFormat {
             mask <<= 1;
         }
         return new String(data);
+    }
+
+    /**
+     * @return true if the format supports signed values
+     */
+    public boolean isSigned() {
+        return this.equals(decSigned);
     }
 }

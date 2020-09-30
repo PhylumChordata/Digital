@@ -45,6 +45,7 @@ public class UndoManager<A extends Copyable<A>> {
         modifications = new ArrayList<>();
         modificationCounter = 0;
         savedCounter = 0;
+        fireChangedEvent();
     }
 
 
@@ -65,7 +66,7 @@ public class UndoManager<A extends Copyable<A>> {
             modificationCounter = modifications.size();
             fireChangedEvent();
         } catch (ModifyException e) {
-            throw createTrace(e);
+            throw createTrace(e, null);
         }
     }
 
@@ -86,7 +87,7 @@ public class UndoManager<A extends Copyable<A>> {
                 modificationCounter++;
                 fireChangedEvent();
             } catch (ModifyException e) {
-                throw createTrace(e);
+                throw createTrace(e, null);
             }
         }
     }
@@ -105,27 +106,34 @@ public class UndoManager<A extends Copyable<A>> {
      */
     public void undo() throws ModifyException {
         if (undoAvailable()) {
+            Modification<A> lastWorkingModification = null;
             try {
                 A newActual = initial.createDeepCopy();
-                for (int i = 0; i < modificationCounter - 1; i++)
-                    modifications.get(i).modify(newActual);
+                for (int i = 0; i < modificationCounter - 1; i++) {
+                    Modification<A> m = modifications.get(i);
+                    m.modify(newActual);
+                    lastWorkingModification = m;
+                }
                 modificationCounter--;
                 actual = newActual;
                 fireChangedEvent();
             } catch (ModifyException e) {
-                throw createTrace(e);
+                throw createTrace(e, lastWorkingModification);
             }
         }
     }
 
-    private ModifyException createTrace(ModifyException cause) {
+    private ModifyException createTrace(ModifyException cause, Modification<A> lastWorkingModification) {
         StringBuilder sb = new StringBuilder("Exception during event processing");
         for (int i = 0; i < modifications.size(); i++) {
             if (i == modificationCounter)
                 sb.append("\n>");
             else
                 sb.append("\n ");
-            sb.append(modifications.get(i).toString());
+            Modification<A> m = modifications.get(i);
+            sb.append(m.toString());
+            if (m == lastWorkingModification)
+                sb.append("\n -> exception in the following modification!");
         }
         if (modificationCounter == modifications.size())
             sb.append("\n>");
@@ -187,9 +195,11 @@ public class UndoManager<A extends Copyable<A>> {
      * Adds a listener
      *
      * @param listener the listener to add
+     * @return the given listener for chained calls.
      */
-    public void addListener(ChangedListener listener) {
+    public ChangedListener addListener(ChangedListener listener) {
         listeners.add(listener);
+        return listener;
     }
 
     /**

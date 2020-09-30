@@ -18,7 +18,7 @@ public class TestCaseElement implements Element {
     /**
      * the used {@link ElementAttributes} key
      */
-    public static final Key<TestCaseDescription> TESTDATA = new Key<>("Testdata", TestCaseDescription.DEFAULT);
+    public static final Key<TestCaseDescription> TESTDATA = new Key<>("Testdata", () -> new TestCaseDescription(""));
 
     /**
      * The TestCaseElement description
@@ -26,7 +26,9 @@ public class TestCaseElement implements Element {
     public static final ElementTypeDescription TESTCASEDESCRIPTION
             = new ElementTypeDescription("Testcase", TestCaseElement.class)
             .addAttribute(Keys.LABEL)
-            .addAttribute(TESTDATA);
+            .addAttribute(TESTDATA)
+            .addAttribute(Keys.ENABLED)
+            .supportsHDL();
 
     /**
      * creates a new instance

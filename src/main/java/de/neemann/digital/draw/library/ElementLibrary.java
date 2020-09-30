@@ -9,7 +9,6 @@ import de.neemann.digital.core.arithmetic.*;
 import de.neemann.digital.core.arithmetic.Comparator;
 import de.neemann.digital.core.basic.*;
 import de.neemann.digital.core.element.ElementAttributes;
-import de.neemann.digital.core.element.ElementFactory;
 import de.neemann.digital.core.element.ElementTypeDescription;
 import de.neemann.digital.core.element.Keys;
 import de.neemann.digital.core.extern.External;
@@ -30,6 +29,7 @@ import de.neemann.digital.gui.Settings;
 import de.neemann.digital.gui.components.data.DummyElement;
 import de.neemann.digital.gui.components.graphics.GraphicCard;
 import de.neemann.digital.gui.components.graphics.LedMatrix;
+import de.neemann.digital.gui.components.graphics.VGA;
 import de.neemann.digital.gui.components.terminal.Keyboard;
 import de.neemann.digital.gui.components.terminal.Terminal;
 import de.neemann.digital.lang.Lang;
@@ -52,7 +52,7 @@ import java.util.*;
  * This is done because the loading of a circuit and the creation of an icon is very time consuming and should
  * be avoided if not necessary. It's a kind of lazy loading.
  */
-public class ElementLibrary implements Iterable<ElementLibrary.ElementContainer> {
+public class ElementLibrary implements Iterable<ElementLibrary.ElementContainer>, LibraryInterface {
     private static final Logger LOGGER = LoggerFactory.getLogger(ElementLibrary.class);
     private static final long MIN_RESCAN_INTERVAL = 5000;
 
@@ -71,7 +71,7 @@ public class ElementLibrary implements Iterable<ElementLibrary.ElementContainer>
         if (path.endsWith("/target/Digital.jar"))
             return new File(path.substring(0, path.length() - 19) + "/src/main/dig/lib");
         if (path.endsWith("Digital.jar"))
-            return new File(path.substring(0, path.length() - 12) + "/examples/lib");
+            return new File(path.substring(0, path.length() - 12) + "/lib");
 
         return new File("noLibFound");
     }
@@ -129,19 +129,29 @@ public class ElementLibrary implements Iterable<ElementLibrary.ElementContainer>
                         .add(DipSwitch.DESCRIPTION)
                         .add(DummyElement.TEXTDESCRIPTION)
                         .add(Probe.DESCRIPTION)
-                        .add(new LibraryNode(Lang.get("lib_more"))
+                        .add(DummyElement.DATADESCRIPTION)
+                        .add(new LibraryNode(Lang.get("lib_displays"))
                                 .add(RGBLED.DESCRIPTION)
                                 .add(Out.POLARITYAWARELEDDESCRIPTION)
+                                .add(ButtonLED.DESCRIPTION)
                                 .add(Out.SEVENDESCRIPTION)
                                 .add(Out.SEVENHEXDESCRIPTION)
                                 .add(Out.SIXTEENDESCRIPTION)
-                                .add(LedMatrix.DESCRIPTION)
                                 .add(LightBulb.DESCRIPTION)
-                                .add(DummyElement.DATADESCRIPTION)
+                                .add(LedMatrix.DESCRIPTION)
+                        )
+                        .add(new LibraryNode(Lang.get("lib_mechanic"))
                                 .add(RotEncoder.DESCRIPTION)
+                                .add(StepperMotorUnipolar.DESCRIPTION)
+                                .add(StepperMotorBipolar.DESCRIPTION)
+                        )
+                        .add(new LibraryNode(Lang.get("lib_peripherals"))
                                 .add(Keyboard.DESCRIPTION)
                                 .add(Terminal.DESCRIPTION)
-                                .add(MIDI.DESCRIPTION)))
+                                .add(VGA.DESCRIPTION)
+                                .add(MIDI.DESCRIPTION)
+                        )
+                )
                 .add(new LibraryNode(Lang.get("lib_wires"))
                         .add(Ground.DESCRIPTION)
                         .add(VDD.DESCRIPTION)
@@ -215,8 +225,10 @@ public class ElementLibrary implements Iterable<ElementLibrary.ElementContainer>
                         .add(BusSplitter.DESCRIPTION)
                         .add(Reset.DESCRIPTION)
                         .add(Break.DESCRIPTION)
+                        .add(Stop.DESCRIPTION)
                         .add(AsyncSeq.DESCRIPTION)
-                        .add(External.DESCRIPTION));
+                        .add(External.DESCRIPTION)
+                        .add(PinControl.DESCRIPTION));
 
         addExternalJarComponents(jarFile);
 
@@ -403,6 +415,11 @@ public class ElementLibrary implements Iterable<ElementLibrary.ElementContainer>
         return map.get(elementName);
     }
 
+    @Override
+    public ElementTypeDescription getElementType(String elementName, ElementAttributes attr) throws ElementNotFoundException {
+        return getElementType(elementName);
+    }
+
     /**
      * Returns a {@link ElementTypeDescription} by a given name.
      * If not found its tried to load it.
@@ -565,11 +582,9 @@ public class ElementLibrary implements Iterable<ElementLibrary.ElementContainer>
             } catch (FileNotFoundException e) {
                 throw new IOException(Lang.get("err_couldNotFindIncludedFile_N0", file));
             }
-            ElementTypeDescriptionCustom description =
-                    new ElementTypeDescriptionCustom(file,
-                            attributes -> new CustomElement(circuit, ElementLibrary.this),
-                            circuit);
-            description.setShortName(createShortName(file));
+
+            ElementTypeDescriptionCustom description = createCustomDescription(file, circuit, this);
+            description.setShortName(createShortName(file.getName(), circuit.getAttributes().getLabel()));
 
             String descriptionText = Lang.evalMultilingualContent(circuit.getAttributes().get(Keys.DESCRIPTION));
             if (descriptionText != null && descriptionText.length() > 0) {
@@ -581,88 +596,33 @@ public class ElementLibrary implements Iterable<ElementLibrary.ElementContainer>
         }
     }
 
-    private String createShortName(File file) {
-        return createShortName(file.getName());
-    }
+    private String createShortName(String name, String userDefined) {
+        if (userDefined.isEmpty()) {
+            if (name.endsWith(".dig")) return name.substring(0, name.length() - 4).replace("_", "\\_");
 
-    private String createShortName(String name) {
-        if (name.endsWith(".dig")) return "\\" + name.substring(0, name.length() - 4);
-
-        String transName = Lang.getNull("elem_" + name);
-        if (transName == null)
-            return name;
-        else
-            return transName;
+            String transName = Lang.getNull("elem_" + name);
+            if (transName == null)
+                return name;
+            else
+                return transName;
+        } else {
+            return userDefined;
+        }
     }
 
     /**
-     * The description of a nested element.
-     * This is a complete circuit which is used as a element.
+     * Creates a custom element description.
+     *
+     * @param file    the file
+     * @param circuit the circuit
+     * @param library the used library
+     * @return the type description
+     * @throws PinException PinException
      */
-    public static class ElementTypeDescriptionCustom extends ElementTypeDescription {
-        private final File file;
-        private final Circuit circuit;
-        private String description;
-
-        /**
-         * Creates a new element
-         *
-         * @param file           the file which is loaded
-         * @param elementFactory a element factory which is used to create concrete elements if needed
-         * @param circuit        the circuit
-         * @throws PinException PinException
-         */
-        public ElementTypeDescriptionCustom(File file, ElementFactory elementFactory, Circuit circuit) throws PinException {
-            super(file.getName(), elementFactory, circuit.getInputNames());
-            this.file = file;
-            this.circuit = circuit;
-            setShortName(file.getName());
-            addAttribute(Keys.ROTATE);
-            addAttribute(Keys.LABEL);
-            addAttribute(Keys.SHAPE_TYPE);
-        }
-
-        /**
-         * Returns the filename
-         * The returned file is opened if the user wants to modify the element
-         *
-         * @return the filename
-         */
-        public File getFile() {
-            return file;
-        }
-
-        /**
-         * @return the elements attributes
-         */
-        public ElementAttributes getAttributes() {
-            return circuit.getAttributes();
-        }
-
-        /**
-         * @return the circuit
-         */
-        public Circuit getCircuit() {
-            return circuit;
-        }
-
-        /**
-         * Sets a custom description for this field
-         *
-         * @param description the description
-         */
-        public void setDescription(String description) {
-            this.description = description;
-        }
-
-        @Override
-        public String getDescription(ElementAttributes elementAttributes) {
-            if (description != null)
-                return description;
-            else
-                return super.getDescription(elementAttributes);
-        }
-
+    public static ElementTypeDescriptionCustom createCustomDescription(File file, Circuit circuit, ElementLibrary library) throws PinException {
+        ElementTypeDescriptionCustom d = new ElementTypeDescriptionCustom(file, circuit);
+        d.setElementFactory(attributes -> new CustomElement(d));
+        return d;
     }
 
 

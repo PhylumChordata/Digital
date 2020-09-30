@@ -7,35 +7,20 @@ package de.neemann.digital.draw.model;
 
 import de.neemann.digital.core.NodeWithoutDelay;
 import de.neemann.digital.core.ObservableValue;
+import de.neemann.digital.hdl.hgs.HGSMap;
 
 import java.util.HashSet;
+import java.util.Objects;
 
 /**
  * Manages the input inverting of a component
  */
-public class InverterConfig {
+public final class InverterConfig implements HGSMap {
 
     private HashSet<String> inputs;
 
-    /**
-     * Creates a new instance.
-     * No input is inverted.
-     */
-    public InverterConfig() {
-        inputs = null;
-    }
-
-    /**
-     * Adds a signal to invert
-     *
-     * @param name the signale
-     * @return this for chained calls
-     */
-    public InverterConfig add(String name) {
-        if (inputs == null)
-            inputs = new HashSet<>();
-        inputs.add(name);
-        return this;
+    private InverterConfig(HashSet<String> inputs) {
+        this.inputs = inputs;
     }
 
     /**
@@ -103,7 +88,7 @@ public class InverterConfig {
 
         InverterConfig that = (InverterConfig) o;
 
-        return inputs != null ? inputs.equals(that.inputs) : that.inputs == null;
+        return Objects.equals(inputs, that.inputs);
     }
 
     @Override
@@ -118,5 +103,44 @@ public class InverterConfig {
         if (inputs == null)
             return 0;
         return inputs.size();
+    }
+
+    @Override
+    public Object hgsMapGet(String key) {
+        if (inputs == null)
+            return false;
+
+        return inputs.contains(key);
+    }
+
+    /**
+     * Builder to create InverterConfig instances
+     */
+    public static class Builder {
+
+        private HashSet<String> inputs;
+
+        /**
+         * Adds a signal to invert
+         *
+         * @param name the signale
+         * @return this for chained calls
+         */
+        public Builder add(String name) {
+            if (inputs == null)
+                inputs = new HashSet<>();
+            inputs.add(name);
+            return this;
+        }
+
+        /**
+         * Creats the instance
+         *
+         * @return the created instance
+         */
+        public InverterConfig build() {
+            return new InverterConfig(inputs);
+        }
+
     }
 }

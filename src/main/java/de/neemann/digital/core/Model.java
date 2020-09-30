@@ -132,6 +132,15 @@ public class Model implements Iterable<Node>, SyncAccess {
     }
 
     /**
+     * @return true if this model runs in the main frame
+     */
+    public boolean runningInMainFrame() {
+        if (windowPosManager == null)
+            return false;
+        return windowPosManager.getMainFrame() != null;
+    }
+
+    /**
      * Returns the actual step counter.
      * This counter is incremented by every micro step
      *
@@ -179,17 +188,20 @@ public class Model implements Iterable<Node>, SyncAccess {
         nodesToUpdateNext.addAll(nodes);
         state = State.INITIALIZING;
         doStep(noise);
-        if (!resets.isEmpty()) {
-            for (Reset reset : resets)
-                reset.clearReset();
-            if (!asyncMode)
-                doStep(false);
-            else
-                doMicroStep(false);
+        // state is CLOSED if an error during the first doStep has occurred!
+        if (state != State.CLOSED) {
+            if (!resets.isEmpty()) {
+                for (Reset reset : resets)
+                    reset.clearReset();
+                if (!asyncMode)
+                    doStep(false);
+                else
+                    doMicroStep(false);
+            }
+            LOGGER.debug("stabilizing took " + version + " micro steps");
+            state = State.RUNNING;
+            fireEvent(ModelEvent.STARTED);
         }
-        LOGGER.debug("stabilizing took " + version + " micro steps");
-        state = State.RUNNING;
-        fireEvent(ModelEvent.STARTED);
     }
 
     /**
@@ -197,7 +209,7 @@ public class Model implements Iterable<Node>, SyncAccess {
      * A STOPPED event is fired.
      */
     public void close() {
-        if (state == State.RUNNING) {
+        if (state != State.CLOSED) {
             state = State.CLOSED;
             int obs = observers.size();
             if (observersStep != null) obs += observersStep.size();
@@ -212,8 +224,27 @@ public class Model implements Iterable<Node>, SyncAccess {
                 for (ModelStateObserver ob : observersMicroStep)
                     LOGGER.debug("Observer Micro: " + ob.getClass().getSimpleName());
 
-            fireEvent(ModelEvent.STOPPED);
+            fireEvent(ModelEvent.CLOSED);
         }
+    }
+
+    /**
+     * Called if a error has occurred during model execution.
+     * Also closes the model.
+     *
+     * @param cause the cause
+     */
+    public void errorOccurred(Exception cause) {
+        if (state != State.CLOSED)
+            fireEvent(new ModelEvent(cause));
+        close();
+    }
+
+    /**
+     * @return true if model is not closed
+     */
+    public boolean isRunning() {
+        return state != State.CLOSED;
     }
 
     /**
@@ -227,10 +258,8 @@ public class Model implements Iterable<Node>, SyncAccess {
 
     /**
      * Performs a step without noise.
-     *
-     * @throws NodeException NodeException
      */
-    public void doStep() throws NodeException {
+    public void doStep() {
         doStep(false);
     }
 
@@ -241,27 +270,34 @@ public class Model implements Iterable<Node>, SyncAccess {
      * So this method propagates a value change through the whole model.
      *
      * @param noise calculation is performed using noise
-     * @throws NodeException NodeException
      */
-    public void doStep(boolean noise) throws NodeException {
-        if (needsUpdate()) {
-            int counter = 0;
-            while (needsUpdate()) {
-                if (counter++ > MAX_LOOP_COUNTER) {
-                    if (oscillatingNodes == null)
-                        oscillatingNodes = new HashSet<>();
-                    if (counter > COLLECTING_LOOP_COUNTER) {
-                        NodeException seemsToOscillate = new NodeException(Lang.get("err_seemsToOscillate")).addNodes(oscillatingNodes);
-                        oscillatingNodes = null;
-                        throw seemsToOscillate;
-                    } else {
-                        oscillatingNodes.addAll(nodesToUpdateNext);
+    public void doStep(boolean noise) {
+        stepWithCondition(noise, this::needsUpdate);
+    }
+
+    synchronized private void stepWithCondition(boolean noise, StepCondition cond) {
+        try {
+            if (cond.doNextMicroStep()) {
+                int counter = 0;
+                while (cond.doNextMicroStep() && state != State.CLOSED) {
+                    if (counter++ > MAX_LOOP_COUNTER) {
+                        if (oscillatingNodes == null)
+                            oscillatingNodes = new HashSet<>();
+                        if (counter > COLLECTING_LOOP_COUNTER) {
+                            NodeException seemsToOscillate = new NodeException(Lang.get("err_seemsToOscillate")).addNodes(oscillatingNodes);
+                            oscillatingNodes = null;
+                            throw seemsToOscillate;
+                        } else {
+                            oscillatingNodes.addAll(nodesToUpdateNext);
+                        }
                     }
+                    doMicroStep(noise);
                 }
-                doMicroStep(noise);
-            }
-        } else
-            fireEvent(ModelEvent.STEP);
+            } else
+                fireEvent(ModelEvent.STEP);
+        } catch (Exception e) {
+            errorOccurred(e);
+        }
     }
 
     /**
@@ -274,9 +310,8 @@ public class Model implements Iterable<Node>, SyncAccess {
      * </pre>
      *
      * @param noise if true the micro step is performed with noise
-     * @throws NodeException NodeException
      */
-    public void doMicroStep(boolean noise) throws NodeException {
+    synchronized public void doMicroStep(boolean noise) {
         version++;
         // swap lists
         ArrayList<Node> nl = nodesToUpdateNext;
@@ -285,50 +320,94 @@ public class Model implements Iterable<Node>, SyncAccess {
 
         nodesToUpdateNext.clear();
 
-        if (noise) {
-            Collections.shuffle(nodesToUpdateAct);
-            for (Node n : nodesToUpdateAct) {
-                n.readInputs();
-                n.writeOutputs();
+        try {
+            if (noise) {
+                Collections.shuffle(nodesToUpdateAct);
+                for (Node n : nodesToUpdateAct) {
+                    n.readInputs();
+                    n.writeOutputs();
+                }
+            } else {
+                for (Node n : nodesToUpdateAct) {
+                    n.readInputs();
+                }
+                for (Node n : nodesToUpdateAct) {
+                    n.writeOutputs();
+                }
             }
-        } else {
-            for (Node n : nodesToUpdateAct) {
-                n.readInputs();
-            }
-            for (Node n : nodesToUpdateAct) {
-                n.writeOutputs();
-            }
-        }
-        if (observersMicroStep != null)
-            fireEvent(ModelEvent.MICROSTEP);
+            if (observersMicroStep != null)
+                fireEvent(ModelEvent.MICROSTEP);
 
-        if (nodesToUpdateNext.isEmpty())
-            fireEvent(ModelEvent.STEP);
+            if (nodesToUpdateNext.isEmpty())
+                fireEvent(ModelEvent.STEP);
+        } catch (Exception e) {
+            errorOccurred(e);
+        }
     }
 
     /**
      * Runs the model until a positive edge at the break element is detected.
      *
      * @return The number of clock cycles necessary to get the positive edge
-     * @throws NodeException NodeException
      */
-    public BreakInfo runToBreak() throws NodeException {
+    public BreakInfo runToBreak() {
         ArrayList<BreakDetector> brVal = new ArrayList<>();
         for (Break b : breaks)
-            if (b.isEnabled())
-                brVal.add(new BreakDetector(b));
+            brVal.add(new BreakDetector(b));
 
         ObservableValue clkVal = clocks.get(0).getClockOutput();
 
         fireEvent(ModelEvent.FASTRUN);
-        while (true) {
-            clkVal.setBool(!clkVal.getBool());
+        try {
+            while (state != State.CLOSED) {
+                clkVal.setBool(!clkVal.getBool());
+                doStep();
+                for (BreakDetector bd : brVal)
+                    if (bd.detected()) {
+                        fireEvent(ModelEvent.BREAK);
+                        return bd.createInfo();
+                    }
+            }
+        } catch (Exception e) {
+            errorOccurred(e);
+        }
+        return null;
+    }
+
+    /**
+     * Runs the model until a positive edge at the break element is detected in micro step mode.
+     */
+    public void runToBreakMicro() {
+        ArrayList<BreakDetector> brVal = new ArrayList<>();
+        for (Break b : breaks)
+            brVal.add(new BreakDetector(b));
+
+        if (brVal.isEmpty()) {
+            // simply stabilize the circuit
             doStep();
-            for (BreakDetector bd : brVal)
-                if (bd.detected()) {
-                    fireEvent(ModelEvent.BREAK);
-                    return bd.createInfo();
+        } else {
+            ObservableValue clkVal = null;
+            if (clocks.size() == 1)
+                clkVal = clocks.get(0).getClockOutput();
+
+            fireEvent(ModelEvent.FASTRUN);
+            final boolean[] wasBreak = {false};
+            while (!wasBreak[0] && state != State.CLOSED) {
+                if (!needsUpdate()) {
+                    if (clkVal != null)
+                        clkVal.setBool(!clkVal.getBool());
+                    else
+                        break;
                 }
+                stepWithCondition(false, () -> {
+                    for (BreakDetector bd : brVal)
+                        if (bd.detected()) {
+                            fireEvent(ModelEvent.BREAK);
+                            wasBreak[0] = true;
+                        }
+                    return needsUpdate() && !wasBreak[0];
+                });
+            }
         }
     }
 
@@ -336,14 +415,7 @@ public class Model implements Iterable<Node>, SyncAccess {
      * @return true if the models allows fast run steps
      */
     public boolean isRunToBreakAllowed() {
-        if (clocks.size() != 1 || breaks.isEmpty())
-            return false;
-
-        for (Break b : breaks)
-            if (b.isEnabled())
-                return true;
-
-        return false;
+        return clocks.size() == 1 && !breaks.isEmpty();
     }
 
     /**
@@ -385,9 +457,9 @@ public class Model implements Iterable<Node>, SyncAccess {
      * @param event    the mandatory event
      * @param events   more optional events
      */
-    public void addObserver(ModelStateObserver observer, ModelEvent event, ModelEvent... events) {
+    public void addObserver(ModelStateObserver observer, ModelEventType event, ModelEventType... events) {
         addObserverForEvent(observer, event);
-        for (ModelEvent ev : events)
+        for (ModelEventType ev : events)
             addObserverForEvent(observer, ev);
     }
 
@@ -397,18 +469,18 @@ public class Model implements Iterable<Node>, SyncAccess {
      * @param observer the observer to add
      */
     public void addObserver(ModelStateObserverTyped observer) {
-        for (ModelEvent ev : observer.getEvents())
+        for (ModelEventType ev : observer.getEvents())
             addObserverForEvent(observer, ev);
     }
 
 
-    private void addObserverForEvent(ModelStateObserver observer, ModelEvent event) {
+    private void addObserverForEvent(ModelStateObserver observer, ModelEventType event) {
         ArrayList<ModelStateObserver> obs = observers;
-        if (event == ModelEvent.STEP) {
+        if (event == ModelEventType.STEP) {
             if (observersStep == null)
                 observersStep = new ArrayList<>();
             obs = observersStep;
-        } else if (event == ModelEvent.MICROSTEP) {
+        } else if (event == ModelEventType.MICROSTEP) {
             if (observersMicroStep == null)
                 observersMicroStep = new ArrayList<>();
             obs = observersMicroStep;
@@ -454,7 +526,7 @@ public class Model implements Iterable<Node>, SyncAccess {
     }
 
     private void fireEvent(ModelEvent event) {
-        switch (event) {
+        switch (event.getType()) {
             case MICROSTEP:
                 if (observersMicroStep != null)
                     for (ModelStateObserver observer : observersMicroStep)
@@ -493,14 +565,8 @@ public class Model implements Iterable<Node>, SyncAccess {
      * @param aBreak the break
      */
     public void addBreak(Break aBreak) {
-        breaks.add(aBreak);
-    }
-
-    /**
-     * @return all registered Breaks
-     */
-    public ArrayList<Break> getBreaks() {
-        return breaks;
+        if (aBreak.isEnabled())
+            breaks.add(aBreak);
     }
 
     /**
@@ -602,13 +668,6 @@ public class Model implements Iterable<Node>, SyncAccess {
         ArrayList<Signal> n = new ArrayList<>(signals.size());
         n.addAll(signals);
         return n;
-    }
-
-    /**
-     * Fires a model changed event to all listeners.
-     */
-    public void fireManualChangeEvent() {
-        fireEvent(ModelEvent.MANUALCHANGE);
     }
 
     /**
@@ -789,14 +848,19 @@ public class Model implements Iterable<Node>, SyncAccess {
     }
 
     @Override
-    public synchronized <A extends Runnable> A access(A run) {
-        run.run();
+    public <A extends Runnable> A modify(A run) {
+        synchronized (this) {
+            run.run();
+        }
+        fireEvent(ModelEvent.EXTERNALCHANGE);
         return run;
     }
 
     @Override
-    public synchronized <A extends ModelRun> A accessNEx(A run) throws NodeException {
-        run.run();
+    public <A extends Runnable> A read(A run) {
+        synchronized (this) {
+            run.run();
+        }
         return run;
     }
 
@@ -860,5 +924,9 @@ public class Model implements Iterable<Node>, SyncAccess {
         private BreakInfo createInfo() {
             return new BreakInfo(c, label);
         }
+    }
+
+    private interface StepCondition {
+        boolean doNextMicroStep() throws NodeException;
     }
 }

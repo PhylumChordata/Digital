@@ -14,7 +14,6 @@ import junit.framework.TestCase;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -189,10 +188,16 @@ public class ParserTest extends TestCase {
         assertEquals("Hello World!", exec("Hello World!", new Context()).toString());
     }
 
-
     public void testParseTemplateTextOnly() throws IOException, ParserException, HGSEvalException {
         assertEquals("Hello World!", exec("Hello World!").toString());
         assertEquals("Hello < < World!", exec("Hello < < World!").toString());
+    }
+
+    public void testParseCommandsOnly() throws IOException, ParserException, HGSEvalException {
+        Statement s = new Parser("a:=2; b:=a*a;").parse(false);
+        Context context = new Context();
+        s.execute(context);
+        assertEquals(4L, context.getVar("b"));
     }
 
     public void testParseTemplateVariable() throws IOException, ParserException, HGSEvalException {
@@ -341,6 +346,13 @@ public class ParserTest extends TestCase {
         assertEquals("f=314.16;", c.toString());
     }
 
+    public void testParseTemplateEscape() throws IOException, ParserException, HGSEvalException {
+        assertEquals("simple", exec("<? str:=\"simple\"; print(identifier(str)); ?>").toString());
+        assertEquals("hp", exec("<? str:=\"hä-äpä\"; print(identifier(str)); ?>").toString());
+        assertEquals("A0", exec("<? str:=\"A-0\"; print(identifier(str)); ?>").toString());
+        assertEquals("n0A", exec("<? str:=\"0-A\"; print(identifier(str)); ?>").toString());
+    }
+
     public void testComment() throws IOException, ParserException, HGSEvalException {
         Context c = exec("<? // comment\nprint(\"false\"); // zzz\n ?>;");
         assertEquals("false;", c.toString());
@@ -381,25 +393,6 @@ public class ParserTest extends TestCase {
         });
         assertEquals("a : in ;", exec(s, c).toString());
         assertEquals(7, flag);
-    }
-
-    public void testStatic() throws IOException, ParserException, HGSEvalException {
-        Parser p = new Parser("generic a; <? @gen[0]:=\"a\"; ?>");
-        final ArrayList<Object> generics = new ArrayList<>();
-        p.getStaticContext().declareVar("gen", generics);
-        p.parse();
-
-        assertEquals(1, generics.size());
-        assertEquals("a", generics.get(0));
-    }
-
-    public void testFunctionStatic() throws IOException, ParserException, HGSEvalException {
-        Parser p = new Parser("<? @f:=func(a){return a*a+2;};  print(f(4));?>");
-        p.parse();
-        Object fObj = p.getStaticContext().getVar("f");
-        assertTrue(fObj instanceof Function);
-        Function f = (Function) fObj;
-        assertEquals(11L, f.call(3));
     }
 
     public void testFunction() throws IOException, ParserException, HGSEvalException {
@@ -608,7 +601,7 @@ public class ParserTest extends TestCase {
 
     // checks the available VHDL templates
     public void testVHDLTemplates() throws Exception {
-        final File path = new File(Resources.getRoot(), "../../main/resources/vhdl2");
+        final File path = new File(Resources.getRoot(), "../../main/resources/vhdl");
         int n = new FileScanner(f -> new Parser(new FileReader(f), f.getName()).parse()).setSuffix(".tem").scan(path);
         assertTrue(n > 10);
     }

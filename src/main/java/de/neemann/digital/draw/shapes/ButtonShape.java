@@ -5,7 +5,6 @@
  */
 package de.neemann.digital.draw.shapes;
 
-import de.neemann.digital.core.Observer;
 import de.neemann.digital.core.SyncAccess;
 import de.neemann.digital.core.element.Element;
 import de.neemann.digital.core.element.ElementAttributes;
@@ -27,7 +26,7 @@ import static de.neemann.digital.draw.shapes.OutputShape.OUT_SIZE;
  */
 public class ButtonShape implements Shape {
 
-    private static final int HEIGHT = OUT_SIZE / 2;
+    protected static final int HEIGHT = OUT_SIZE / 2;
 
     private final String label;
     private final PinDescriptions outputs;
@@ -51,30 +50,25 @@ public class ButtonShape implements Shape {
     }
 
     @Override
-    public InteractorInterface applyStateMonitor(IOState ioState, Observer guiObserver) {
+    public InteractorInterface applyStateMonitor(IOState ioState) {
         this.button = (Button) ioState.getElement();
-        ioState.getOutput(0).addObserverToValue(guiObserver);
         return new InteractorInterface() {
             @Override
-            public boolean clicked(CircuitComponent cc, Point pos, IOState ioState, Element element, SyncAccess modelSync) {
-                return false;
+            public void clicked(CircuitComponent cc, Point pos, IOState ioState, Element element, SyncAccess modelSync) {
             }
 
             @Override
-            public boolean pressed(CircuitComponent cc, Point pos, IOState ioState, Element element, SyncAccess modelSync) {
-                modelSync.access(() -> button.setPressed(true));
-                return true;
+            public void pressed(CircuitComponent cc, Point pos, IOState ioState, Element element, SyncAccess modelSync) {
+                modelSync.modify(() -> button.setPressed(true));
             }
 
             @Override
-            public boolean released(CircuitComponent cc, Point pos, IOState ioState, Element element, SyncAccess modelSync) {
-                modelSync.access(() -> button.setPressed(false));
-                return true;
+            public void released(CircuitComponent cc, Point pos, IOState ioState, Element element, SyncAccess modelSync) {
+                modelSync.modify(() -> button.setPressed(false));
             }
 
             @Override
-            public boolean dragged(CircuitComponent cc, Vector pos, Transform trans, IOState ioState, Element element, SyncAccess modelSync) {
-                return false;
+            public void dragged(CircuitComponent cc, Point posOnScreen, Vector pos, Transform trans, IOState ioState, Element element, SyncAccess modelSync) {
             }
         };
     }
@@ -107,6 +101,6 @@ public class ButtonShape implements Shape {
         }
 
         Vector textPos = new Vector(-OUT_SIZE * 3, -4);
-        graphic.drawText(textPos, textPos.add(1, 0), label, Orientation.RIGHTCENTER, Style.NORMAL);
+        graphic.drawText(textPos, label, Orientation.RIGHTCENTER, Style.NORMAL);
     }
 }

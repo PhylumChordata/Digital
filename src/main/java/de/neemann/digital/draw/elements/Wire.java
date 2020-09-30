@@ -11,6 +11,7 @@ import de.neemann.digital.core.element.Keys;
 import de.neemann.digital.draw.graphics.Graphic;
 import de.neemann.digital.draw.graphics.Style;
 import de.neemann.digital.draw.graphics.Vector;
+import de.neemann.digital.draw.graphics.VectorFloat;
 import de.neemann.digital.draw.shapes.Drawable;
 import de.neemann.digital.draw.shapes.ObservableValueReader;
 import de.neemann.digital.gui.Settings;
@@ -86,6 +87,11 @@ public class Wire implements Drawable, Movable, ObservableValueReader {
             style = Style.getWireStyle(value);
 
         graphic.drawLine(p1, p2, style);
+        if (highLight == Style.ERROR && graphic.isFlagSet(Graphic.Flag.tiny)) {
+            Vector min = Vector.min(p1, p2).add(-SIZE, -SIZE);
+            Vector max = Vector.max(p1, p2).add(SIZE, SIZE);
+            graphic.drawCircle(min, max, highLight);
+        }
 
         if (value != null)
             bits = value.getBits();
@@ -102,7 +108,7 @@ public class Wire implements Drawable, Movable, ObservableValueReader {
                 pos = pos.add(0, -3);
                 ori = de.neemann.digital.draw.graphics.Orientation.CENTERBOTTOM;
             }
-            graphic.drawText(pos, pos.add(1, 0), value.toString(), ori, Style.WIRE_VALUE);
+            graphic.drawText(pos, value.toString(), ori, Style.WIRE_VALUE);
         }
 
         int minCrossLen = isConnectedToSplitter ? MIN_CROSS_WIRE_LEN_SPLITTER : MIN_CROSS_WIRE_LEN;
@@ -110,7 +116,7 @@ public class Wire implements Drawable, Movable, ObservableValueReader {
             Vector pos = getRoundPos();
             graphic.drawLine(pos.add(CROSS_LEN, CROSS_LEN), pos.add(-CROSS_LEN, -CROSS_LEN), Style.WIRE_BITS);
             Vector numPos = pos.add(0, -3);
-            graphic.drawText(numPos, numPos.add(1, 0), Integer.toString(bits), de.neemann.digital.draw.graphics.Orientation.LEFTBOTTOM, Style.WIRE_BITS);
+            graphic.drawText(numPos, Integer.toString(bits), de.neemann.digital.draw.graphics.Orientation.LEFTBOTTOM, Style.WIRE_BITS);
         }
 
         if (p1Dot || p2Dot) {
@@ -184,9 +190,9 @@ public class Wire implements Drawable, Movable, ObservableValueReader {
      */
     public boolean contains(Vector v, int radius) {
         if (p1.x == p2.x)
-            return Math.abs(p1.x - v.x) < radius && ((p1.y < v.y && v.y < p2.y) || (p2.y < v.y && v.y < p1.y));
+            return Math.abs(p1.x - v.x) < radius && ((p1.y - radius < v.y && v.y < p2.y + radius) || (p2.y - radius < v.y && v.y < p1.y + radius));
         else if (p1.y == p2.y)
-            return Math.abs(p1.y - v.y) < radius && ((p1.x < v.x && v.x < p2.x) || (p2.x < v.x && v.x < p1.x));
+            return Math.abs(p1.y - v.y) < radius && ((p1.x - radius < v.x && v.x < p2.x + radius) || (p2.x - radius < v.x && v.x < p1.x + radius));
         else {
             // some simple box tests
             if (v.x < Math.min(p1.x, p2.x) - radius) return false;
@@ -204,13 +210,34 @@ public class Wire implements Drawable, Movable, ObservableValueReader {
     }
 
     /**
+     * Returns the distance to the wire.
+     *
+     * @param v the position
+     * @return the distance
+     */
+    public float distance(Vector v) {
+        Vector ds = p2.sub(p1);
+        float len = ds.len();
+        VectorFloat d = ds.mul(1 / len);
+        VectorFloat p = v.sub(p1).toFloat();
+        float s = p.mul(d);
+
+        if (s < 0)
+            return v.sub(p1).len();
+        else if (s > len)
+            return v.sub(p2).len();
+        else
+            return d.mul(s).sub(p).len();
+    }
+
+    /**
      * @return the orientation of the wire
      */
     public Orientation getOrientation() {
         if (p1.x == p2.x)
             return Orientation.vertical;
         if (p1.y == p2.y)
-            return Orientation.horzontal;
+            return Orientation.horizontal;
         return Orientation.diagonal;
     }
 
@@ -332,5 +359,5 @@ public class Wire implements Drawable, Movable, ObservableValueReader {
         this.isConnectedToSplitter = isConnectedToSplitter;
     }
 
-    enum Orientation {horzontal, vertical, diagonal}
+    enum Orientation {horizontal, vertical, diagonal}
 }

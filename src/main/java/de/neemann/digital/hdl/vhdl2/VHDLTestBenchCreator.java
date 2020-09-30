@@ -16,7 +16,6 @@ import de.neemann.digital.hdl.model2.HDLPort;
 import de.neemann.digital.hdl.printer.CodePrinter;
 import de.neemann.digital.lang.Lang;
 import de.neemann.digital.testing.TestCaseDescription;
-import de.neemann.digital.testing.TestCaseElement;
 import de.neemann.digital.testing.TestingDataException;
 import de.neemann.digital.testing.parser.Context;
 import de.neemann.digital.testing.parser.LineListener;
@@ -49,9 +48,8 @@ public class VHDLTestBenchCreator {
         this.main = model.getMain();
         this.renaming = model.getRenaming();
         testCases = new ArrayList<>();
-        for (VisualElement ve : circuit.getElements())
-            if (ve.equalsDescription(TestCaseElement.TESTCASEDESCRIPTION))
-                testCases.add(ve.getElementAttributes());
+        for (VisualElement ve : circuit.getTestCases())
+            testCases.add(ve.getElementAttributes());
         testFileWritten = new ArrayList<>();
     }
 
@@ -69,11 +67,12 @@ public class VHDLTestBenchCreator {
         if (p > 0)
             filename = filename.substring(0, p);
 
+        VHDLRenaming renaming = new VHDLRenaming();
         for (ElementAttributes tc : testCases) {
             String testName = tc.getLabel();
-            if (testName.length() > 0)
-                testName = filename + "_" + testName + "_tb";
-            else
+            if (testName.length() > 0) {
+                testName = filename + "_" + renaming.checkName(testName) + "_tb";
+            } else
                 testName = filename + "_tb";
 
             File f = new File(file.getParentFile(), testName + ".vhdl");
@@ -114,6 +113,17 @@ public class VHDLTestBenchCreator {
             out.print("signal ").print(p.getName()).print(" : ").print(VHDLCreator.getType(p.getBits())).println(";");
         for (HDLPort p : main.getOutputs())
             out.print("signal ").print(p.getName()).print(" : ").print(VHDLCreator.getType(p.getBits())).println(";");
+
+        out.print("function to_string ( a: std_logic_vector) return string is\n"
+                + "    variable b : string (1 to a'length) := (others => NUL);\n"
+                + "    variable stri : integer := 1; \n"
+                + "begin\n"
+                + "    for i in a'range loop\n"
+                + "        b(stri) := std_logic'image(a((i)))(2);\n"
+                + "    stri := stri+1;\n"
+                + "    end loop;\n"
+                + "    return b;\n"
+                + "end function;\n");
         out.dec().println("begin").inc();
 
         out.println("main_0 : main port map (").inc();
@@ -179,13 +189,24 @@ public class VHDLTestBenchCreator {
                     .print(" AND patterns(").print(loopVar).print(").").print(p.getName()).print(" = ")
                     .print(getSimpleValue(p.getBits(), 'Z'))
                     .print(")").eol();
-            out.inc().print("report \"wrong value for ").print(p.getName()).print(" ").print(loopVar).print("=\" & integer'image(").print(loopVar).println(") severity error;").dec();
+            out.inc().print("report \"wrong value for ").print(p.getName()).print(", ").print(loopVar).print("=\" & integer'image(").print(loopVar).println(")")
+                    .print(" & \", expected \"")
+                    .print(" & ").print(convertFunc(p)).print("(patterns(").print(loopVar).print(").").print(p.getName()).print(")")
+                    .print(" & \", found \"")
+                    .print(" & ").print(convertFunc(p)).print("(").print(p.getName()).print(")")
+                    .print(" severity error;").dec();
         }
 
         out.dec().println("end loop;");
         out.println("wait;");
         out.dec().println("end process;");
         out.dec().println("end behav;");
+    }
+
+    private String convertFunc(HDLPort p) {
+        if (p.getBits() > 1)
+            return "to_string";
+        return "std_logic'image";
     }
 
     private boolean loopVarExists(String loopVar, ArrayList<HDLPort> ports) {

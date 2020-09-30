@@ -15,7 +15,8 @@ import de.neemann.digital.lang.Lang;
 import static de.neemann.digital.core.element.PinInfo.input;
 
 /**
- * Sign extension component
+ * Sign extension component.
+ * Is not a node because it is just a special kind of wiring.
  */
 public class BitExtender implements Element {
 
@@ -27,11 +28,13 @@ public class BitExtender implements Element {
             .addAttribute(Keys.ROTATE)
             .addAttribute(Keys.LABEL)
             .addAttribute(Keys.INPUT_BITS)
-            .addAttribute(Keys.OUTPUT_BITS);
+            .addAttribute(Keys.OUTPUT_BITS)
+            .supportsHDL();
 
     private final ObservableValue out;
     private final int outBits;
     private final int inBits;
+    private NodeWithoutDelay node;
 
     /**
      * creates a new instance
@@ -53,7 +56,7 @@ public class BitExtender implements Element {
         final long signMask = Bits.signedFlagMask(inBits);
         final long extendMask = ~Bits.mask(inBits);
 
-        in.addObserver(new NodeWithoutDelay(out) {
+        node = new NodeWithoutDelay(out) {
             @Override
             public void hasChanged() {
                 long inValue = in.getValue();
@@ -62,7 +65,13 @@ public class BitExtender implements Element {
                 else
                     out.setValue(inValue | extendMask);
             }
-        }).hasChanged();
+        };
+        in.addObserver(node);
+    }
+
+    @Override
+    public void init(Model model) throws NodeException {
+        node.hasChanged();
     }
 
     @Override
@@ -72,6 +81,7 @@ public class BitExtender implements Element {
 
     @Override
     public void registerNodes(Model model) {
-        // has no nodes! Is just wiring
+        // has no real nodes! Is just wiring
     }
+
 }

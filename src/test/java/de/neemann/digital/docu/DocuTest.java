@@ -5,14 +5,13 @@
  */
 package de.neemann.digital.docu;
 
+import de.neemann.digital.cli.Main;
 import de.neemann.digital.core.NodeException;
 import de.neemann.digital.core.element.*;
-import de.neemann.digital.core.memory.Counter;
 import de.neemann.digital.draw.elements.PinException;
 import de.neemann.digital.draw.elements.VisualElement;
 import de.neemann.digital.draw.graphics.GraphicMinMax;
 import de.neemann.digital.draw.graphics.GraphicSVG;
-import de.neemann.digital.draw.graphics.GraphicSVGIndex;
 import de.neemann.digital.draw.library.ElementLibrary;
 import de.neemann.digital.draw.library.LibraryNode;
 import de.neemann.digital.draw.library.NumStringComparator;
@@ -61,6 +60,8 @@ public class DocuTest extends TestCase {
                 .append(Lang.get("tableOfContent"))
                 .append("\" lang=\"")
                 .append(language)
+                .append("\" fontFamily=\"")
+                .append(language.equals("zh") ? "SansSerif,SimSun" : "SansSerif")
                 .append("\" rev=\"")
                 .append(System.getProperty("buildnumber"))
                 .append("\" revt=\"")
@@ -88,6 +89,8 @@ public class DocuTest extends TestCase {
         writeAttributes(w, CircuitComponent.getAttrList());
         w.append("    </circuit>\n");
         w.append("  </settings>\n");
+
+        writeCLIDescription(w);
 
         ElementLibrary library = new ElementLibrary();
         ShapeFactory shapeFactory = new ShapeFactory(library, !language.equals("de"));
@@ -139,6 +142,12 @@ public class DocuTest extends TestCase {
         w.append("</root>");
     }
 
+    private void writeCLIDescription(Writer w) throws IOException {
+        w.append("  <cli heading=\"").append(Lang.get("cli_cli")).append("\">\n");
+        new Main().printXMLDescription(w);
+        w.append("  </cli>\n");
+    }
+
     private void writeAttributes(Writer w, List<Key> keyList) throws IOException {
         w.append("      <attributes name=\"").append(Lang.get("elem_Help_attributes")).append("\">\n");
         for (Key k : keyList) {
@@ -160,7 +169,7 @@ public class DocuTest extends TestCase {
 
     private void writeSVG(File imageFile, VisualElement ve) throws IOException {
         try (FileOutputStream out = new FileOutputStream(imageFile)) {
-            try (GraphicSVG svg = new GraphicSVGIndex(out, null, 20)) {
+            try (GraphicSVG svg = new GraphicSVG(out,null, 20)) {
                 GraphicMinMax minMax = new GraphicMinMax(true, svg);
                 ve.drawTo(minMax, null);
                 svg.setBoundingBox(minMax.getMin(), minMax.getMax());
@@ -327,7 +336,7 @@ public class DocuTest extends TestCase {
             File pdf = new File(target, basename + ".pdf");
             startFOP(fopFactory, xslFO, pdf);
 
-            copy(pdf, new File(target2, "Doc_" + l + ".pdf"));
+            copy(pdf, new File(target2, "Doc_" + l.getFileName() + ".pdf"));
         }
     }
 

@@ -32,10 +32,12 @@ public class FlipflopJKAsync extends FlipflopJK {
             input("K"),
             input("Clr"))
             .addAttribute(Keys.ROTATE)
+            .addAttribute(Keys.MIRROR)
             .addAttribute(Keys.LABEL)
             .addAttribute(Keys.DEFAULT)
             .addAttribute(Keys.INVERTER_CONFIG)
-            .addAttribute(Keys.VALUE_IS_PROBE);
+            .addAttribute(Keys.VALUE_IS_PROBE)
+            .supportsHDL();
 
     private ObservableValue setVal;
     private ObservableValue clrVal;

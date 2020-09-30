@@ -19,8 +19,8 @@
     <string name="attr_dialogHighz">HighZ</string>
     <string name="attr_dialogOctal">Octal</string>
     <string name="attr_dialogBinary">Binary</string>
-    <string name="attr_primary">Basic</string>
-    <string name="attr_secondary">Advanced</string>
+    <string name="attr_panel_primary">Basic</string>
+    <string name="attr_panel_secondary">Advanced</string>
     <string name="btn_discard">Discard Changes</string>
     <string name="btn_edit">Edit</string>
     <string name="btn_editFurther">Continue editing</string>
@@ -129,7 +129,7 @@
 
     <!-- IO -->
 
-    <string name="elem_Out">Out</string>
+    <string name="elem_Out">Output</string>
     <string name="elem_Out_tt">Can be used to display an output signal in a circuit.
         This element is also used to connect a circuit to an embedding circuit.
         In this case the connection is bidirectional.
@@ -178,6 +178,11 @@
     <string name="elem_Button">Button</string>
     <string name="elem_Button_tt">A simple push button which goes back to its original state when it is released.</string>
     <string name="elem_Button_pin_out">The output signal of the button.</string>
+    <string name="elem_ButtonLED">Button with LED</string>
+    <string name="elem_ButtonLED_tt">A simple push button which goes back to its original state when it is released.
+        The push button has an LED which can be switched via an input signal.</string>
+    <string name="elem_ButtonLED_pin_out">The output signal of the button.</string>
+    <string name="elem_ButtonLED_pin_in">Input for controlling the LED.</string>
     <string name="elem_Text">Text</string>
     <string name="elem_Text_tt">Shows a text in the circuit.
         Does not affect the simulation.
@@ -214,7 +219,8 @@
     <string name="elem_Seven-Seg_pin_f">This input controls the upper, left, vertical line.</string>
     <string name="elem_Seven-Seg_pin_g">This input controls the middle, horizontal line.</string>
     <string name="elem_Seven-Seg_pin_dp">This input controls the decimal point.</string>
-    <string name="elem_Seven-Seg_pin_cc">Common Cathode. To turn on the LEDs, this input needs to be low.</string>
+    <string name="elem_Seven-Seg_pin_cc">Common cathode. To turn on the LEDs, this input needs to be low.</string>
+    <string name="elem_Seven-Seg_pin_ca">Common anode. To turn on the LEDs, this input needs to be high.</string>
     <string name="elem_Seven-Seg-Hex">Seven-Segment-Hex Display</string>
     <string name="elem_Seven-Seg-Hex_tt">Seven Segment Display with a 4 bit hex input</string>
     <string name="elem_Seven-Seg-Hex_pin_d">The value at this input is visualized at the display.</string>
@@ -251,27 +257,71 @@
     </string>
     <string name="elem_Keyboard_pin_C">Clock. A rising edge removes the oldest character from the buffer.</string>
     <string name="elem_Keyboard_pin_en">If high the output D is active and one character is output.
-        It also enables the clock input.</string>
-    <string name="elem_Keyboard_pin_D">The last typed character, or zero if no character is available.</string>
+        It also enables the clock input.
+    </string>
+    <string name="elem_Keyboard_pin_D">The last typed character, or zero if no character is available.
+        Output is the 16 bit Java char value.
+    </string>
     <string name="elem_Keyboard_pin_av">This output indicates that characters are available.
-        It can be used to trigger an interrupt.</string>
+        It can be used to trigger an interrupt.
+    </string>
 
     <string name="elem_Terminal">Terminal</string>
     <string name="elem_Terminal_tt">You can write ASCII characters to this terminal.
-        The terminal opens its own window to visualize the output.</string>
-    <string name="elem_Terminal_pin_C">Clock. A rising edge writes the value at the input to the terminal window.</string>
+        The terminal opens its own window to visualize the output.
+    </string>
+    <string name="elem_Terminal_pin_C">Clock. A rising edge writes the value at the input to the terminal window.
+    </string>
     <string name="elem_Terminal_pin_D">The data to write to the terminal</string>
     <string name="elem_Terminal_pin_en">A high at this input enables the clock input.</string>
+
+    <string name="elem_VGA">VGA Monitor</string>
+    <string name="elem_VGA_tt">Analyzes the incoming video signals and displays the corresponding graphic.
+        Since the simulation cannot run in real time, the pixel clock is required in addition to the video signals.</string>
+    <string name="elem_VGA_pin_R">The red color component</string>
+    <string name="elem_VGA_pin_G">The green color component</string>
+    <string name="elem_VGA_pin_B">The blue color component</string>
+    <string name="elem_VGA_pin_H">The horizontal synchronization signal</string>
+    <string name="elem_VGA_pin_V">The vertical synchronization signal</string>
+    <string name="elem_VGA_pin_C">The pixel clock</string>
 
     <string name="elem_MIDI">MIDI</string>
     <string name="elem_MIDI_tt">Uses the MIDI system to play notes.</string>
     <string name="elem_MIDI_pin_N">Note</string>
     <string name="elem_MIDI_pin_V">Volume</string>
     <string name="elem_MIDI_pin_OnOff">If set, this translates to pressing a keyboard key (key down event),
-        if not set, this translates to releasing the key (key up event).</string>
+        if not set, this translates to releasing the key (key up event).
+    </string>
     <string name="elem_MIDI_pin_en">Enables the component</string>
     <string name="elem_MIDI_pin_PC">If high, the value at N is used to change the program (instrument).</string>
     <string name="elem_MIDI_pin_C">Clock</string>
+
+    <string name="elem_StepperMotorUnipolar">Stepper Motor, unipolar</string>
+    <string name="elem_StepperMotorUnipolar_tt">Unipolar stepper motor with two limit position switches.
+        Full step drive, half step drive and wave drive are supported.
+    </string>
+    <string name="elem_StepperMotorUnipolar_pin_S0">Limit position switch 0, becomes 1 when the motor angle is 0°.
+    </string>
+    <string name="elem_StepperMotorUnipolar_pin_S1">Limit position switch 1, becomes 1 when the motor angle is 180°.
+    </string>
+    <string name="elem_StepperMotorUnipolar_pin_P0">Phase 0</string>
+    <string name="elem_StepperMotorUnipolar_pin_P1">Phase 1</string>
+    <string name="elem_StepperMotorUnipolar_pin_P2">Phase 2</string>
+    <string name="elem_StepperMotorUnipolar_pin_P3">Phase 3</string>
+    <string name="elem_StepperMotorUnipolar_pin_com">Common center coil connection</string>
+
+    <string name="elem_StepperMotorBipolar">Stepper Motor, bipolar</string>
+    <string name="elem_StepperMotorBipolar_tt">Bipolar stepper motor with two limit position switches.
+        Full step drive, half step drive and wave drive are supported.
+    </string>
+    <string name="elem_StepperMotorBipolar_pin_S0">Limit position switch 0, becomes 1 when the motor angle is 0°.
+    </string>
+    <string name="elem_StepperMotorBipolar_pin_S1">Limit position switch 1, becomes 1 when the motor angle is 180°.
+    </string>
+    <string name="elem_StepperMotorBipolar_pin_A+">Coil A, positive</string>
+    <string name="elem_StepperMotorBipolar_pin_A-">Coil A, negative</string>
+    <string name="elem_StepperMotorBipolar_pin_B+">Coil B, positive</string>
+    <string name="elem_StepperMotorBipolar_pin_B-">Coil B, negative</string>
 
     <!-- Wires -->
 
@@ -286,12 +336,14 @@
     <string name="elem_Const_pin_out">Returns the given value as a constant.</string>
     <string name="elem_Tunnel">Tunnel</string>
     <string name="elem_Tunnel_tt">Connects components without a wire. All tunnel elements, which have the same net name,
-        are connected together. Works only locally, so it is not possible to connect different circuits.</string>
+        are connected together. Works only locally, so it is not possible to connect different circuits.
+        Unnamed tunnels are ignored silently.</string>
     <string name="elem_Tunnel_pin_in">The connection to the tunnel.</string>
-    <string name="elem_Splitter">Splitter</string>
+    <string name="elem_Splitter">Splitter/Merger</string>
     <string name="elem_Splitter_tt">Splits or creates a wire bundle or a data bus with more than one bit.
         With a bus it is e.g. possible to generate 16-bit connections without having to route 16 individual wires.
         All 16 connections can be merged into one wire.
+        The splitter has a direction, meaning it can only transmit signals in one direction.
     </string>
     <string name="elem_Splitter_pin_in">The input bits {0}.</string>
     <string name="elem_Splitter_pin_in_one">The input bit {0}.</string>
@@ -345,11 +397,26 @@
         If the sel input is 1, this output is in high z state.
     </string>
 
+    <string name="elem_PinControl">Pin Control</string>
+    <string name="elem_PinControl_tt">Control logic for a bi-directional pin.
+        This component is necessary only in the context of VHDL or Verilog generation, in order to create a
+        bi-directional HDL port!
+        If you don't want to use a bi-directional IO-port on an FPGA, don't use this component!
+        The PinControl component cannot be used in an embedded circuit! It is only allowed at the top level circuit!
+    </string>
+    <string name="elem_PinControl_pin_wr">The data to be output.</string>
+    <string name="elem_PinControl_pin_oe">Activates the output.</string>
+    <string name="elem_PinControl_pin_rd">The data to be read.</string>
+    <string name="elem_PinControl_pin_pin">The connector for the actual pin. Only a single output should be connected
+        here.
+    </string>
 
     <!-- Plexers  -->
 
     <string name="elem_Multiplexer">Multiplexer</string>
-    <string name="elem_Multiplexer_tt">A component which uses the value of the sel pin to decide which input value is set to the output.</string>
+    <string name="elem_Multiplexer_tt">A component which uses the value of the sel pin to decide which input value is
+        set to the output.
+    </string>
     <string name="elem_Multiplexer_input">The {0}. data input of the multiplexer.</string>
     <string name="elem_Multiplexer_output">The value of the selected input.</string>
     <string name="elem_Multiplexer_pin_sel">This input is used to select the data input which is output.</string>
@@ -811,14 +878,21 @@
     <string name="elem_Reset_pin_Reset">Reset Output.</string>
     <string name="elem_Reset_tt">The output of this component is held high during the initialisation of the circuit.
         After the circuit has stabilized the output goes to low.
-        If the output is inverted it behaves the opposite way.</string>
+        If the output is inverted it behaves the opposite way.
+    </string>
     <string name="elem_Break">Break</string>
     <string name="elem_Break_pin_brk">Stops the fast simulation clocking if a rising edge is detected.</string>
     <string name="elem_Break_tt">If this component is used in the circuit, the "Run To Break" button between "Start"
         and "Stop" is enabled. This button clocks the circuit until a rising edge on the input of this component is
         detected. This element can be used for debugging by clocking the circuit to any breakpoint.
         Also an assembler command BRK can be implemented. This allows to execute a program up to the next BRK command.
-        This function can only be used if the real-time clock is deactivated!</string>
+        This function can only be used if the real-time clock is deactivated!
+    </string>
+    <string name="elem_Stop">Stop</string>
+    <string name="elem_Stop_tt">A rising edge at the input stops the simulation.
+        Has the same effect as pressing the Stop button in the toolbar.
+    </string>
+    <string name="elem_Stop_pin_stop">A rising edge stops the simulation.</string>
 
     <string name="elem_External">External</string>
     <string name="elem_External_tt">Component to execute an external process to calculate the logic function.
@@ -837,7 +911,8 @@
     <string name="err_aSingleClockNecessary">A single clock component is necessary. All flip-flops must use this clock signal.</string>
     <string name="err_analyseNoInputs">The circuit has no labeled inputs</string>
     <string name="err_analyseNoOutputs">The circuit has no labeled outputs</string>
-    <string name="err_breakTimeOut">No break detected after {0} cycles at break point ''{1}''.</string>
+    <string name="err_breakTimeOut">No break detected after {0} cycles at break point ''{1}''.
+        Possibly the number of timout cycles in the break component should be increased.</string>
     <string name="err_builder_exprNotSupported">Expression {0} not supported</string>
     <string name="err_builder_operationNotSupported">Operation {0} not supported</string>
     <string name="err_builder_couldNotFillLUT">Error creating the lookup table.</string>
@@ -877,6 +952,7 @@
     <string name="err_clockWithoutName">Found a clock without a label. If a clock is embedded also the clock needs a label.</string>
     <string name="err_pin_N0_atElement_N1_notFound">Pin {0} not found at component {1}</string>
     <string name="err_pin_N_notFound">Pin {0} not found</string>
+    <string name="err_customShapeHasNoPin_N">The custom shape does not define a pin {0}</string>
     <string name="err_pin_N_unknown">Pin {0} unknown</string>
     <string name="err_seemsToOscillate">Logic seems to oscillate.
         To analyse you can run the circuit in single gate step mode.</string>
@@ -902,7 +978,6 @@
     <string name="err_noTestInputSignalsDefined">No input signals defined in test vector!</string>
     <string name="err_noTestOutputSignalsDefined">No output signals defined in test vector!</string>
     <string name="err_noTestData">No test data found.</string>
-    <string name="err_remoteExecution">Error during execution of a remote command</string>
     <string name="err_pullUpAndDownNotAllowed">It's not allowed to connect a pull up and a pull down resistor to a single wire.</string>
     <string name="err_openingDocumentation">Could not open the browser.</string>
     <string name="err_couldNotCreateFolder_N0">Could not create folder &quot;{0}&quot;!</string>
@@ -935,10 +1010,12 @@
     <string name="err_vhdlExporting">Error during export to VHDL.</string>
     <string name="err_vhdlNoEntity_N">No VHDL code for {0} available!</string>
     <string name="err_verilogNoElement_N">No Verilog code for {0} available!</string>
-    <string name="err_vhdlPin_N_hasNoNumber">Pin {0} has no number!</string>
     <string name="err_vhdlErrorWritingTestBench">Error creating a test bench!</string>
     <string name="err_vhdlValuesOfType_N_notAllowed">Values of typ {0} are not allowed!</string>
     <string name="err_vhdlANameIsMissing">A name is missing. Have e.g. all pins a label set?</string>
+    <string name="err_hdlMultipleOutputsConnectedToNet_N_N_N">Several outputs are connected to each other.
+        This type of interconnection is not supported for HDL export. ({0}, {1}, {2}).</string>
+    <string name="err_unnamedNet">unnamed net</string>
     <string name="err_toManyVars">To many variables!</string>
     <string name="err_invalidExpression">Invalid expression!</string>
     <string name="err_function_N0_notFoundInLine_N1">Function {0} not found in line {1}!</string>
@@ -1014,6 +1091,12 @@
     <string name="msg_errorStartCommand_N">Error starting the command {0}</string>
     <string name="err_thereIsAUnnamedIO">There is a unnamed input or output!</string>
     <string name="err_NameOfIOIsInvalidOrNotUnique_N">The signal name "{0}" is invalid or used multiple times!</string>
+    <string name="err_substitutingError">Error when substituting components for the analysis.</string>
+    <string name="err_evaluatingGenericsCode_N_N">Error in the evaluation of the generic code of the circuit. Code
+        {1}
+        at Component: {0}</string>
+    <string name="msg_errParsingGenerics">Error while parsing generics code.</string>
+    <string name="err_ROM_noFileGivenToLoad">There is no file name available for the automatic reload!</string>
 
     <string name="key_AddrBits">Address Bits</string><!-- ROM, RAMDualPort, RAMSinglePort, RAMSinglePortSel, EEPROM -->
     <string name="key_AddrBits_tt">Number of address bits used.</string>
@@ -1092,6 +1175,7 @@
     <string name="key_intFormat_decSigned">signed decimal</string>
     <string name="key_intFormat_def">default</string>
     <string name="key_intFormat_hex">hex</string>
+    <string name="key_intFormat_oct">octal</string>
     <string name="key_barrelSigned">shift input has sign</string><!-- BarrelShifter -->
     <string name="key_barrelSigned_tt">shift input data has two complement format</string>
     <string name="key_barrelShifterMode">Mode</string><!-- BarrelShifter -->
@@ -1110,6 +1194,8 @@
     <string name="key_microStep_tt">Shows all single step steps in the graphic.</string>
     <string name="key_rotation">Rotation</string><!-- And, NAnd, Or, NOr, XOr, XNOr, Not, LookUpTable, Delay, Out, LED, In, Clock, Button, Probe, LightBulb, LedMatrix, RotEncoder, Keyboard, Terminal, Ground, VDD, Const, Tunnel, Splitter, PullUp, PullDown, Driver, DriverInvSel, Multiplexer, Demultiplexer, Decoder, RS_FF, JK_FF, D_FF, T_FF, JK_FF_AS, D_FF_AS, Register, ROM, RAMDualPort, RAMSinglePort, RAMSinglePortSel, EEPROM, GraphicCard, Counter, Add, Sub, Mul, BarrelShifter, Comparator, Neg, BitCount, DiodeForward, DiodeBackward, Switch, Fuse, Relay, PFET, NFET, FGPFET, FGNFET, TransGate, PowerSupply, Reset, Break -->
     <string name="key_rotation_tt">The orientation of the Element in the circuit.</string>
+    <string name="key_mirror">Mirror</string>
+    <string name="key_mirror_tt">Mirrors the component in the circuit.</string>
     <string name="key_runRealTime">Start real time clock</string><!-- Clock -->
     <string name="key_runRealTime_tt">If enabled the runtime clock is started when the circuit is started</string>
     <string name="key_showDataGraph">Show measurement graph at simulation start</string>
@@ -1117,6 +1203,8 @@
     <string name="key_showDataGraphMicro">Show measurement graph in single gate step mode at simulation start</string>
     <string name="key_showDataGraphMicro_tt">When the simulation is started, a graph with the measured values in the
         gate step mode is shown. All gate changes are included in the graph.</string>
+    <string name="key_addValueToGraph">Show in Measurement Graph</string>
+    <string name="key_addValueToGraph_tt">Shows the value in the measurement graph.</string>
     <string name="key_showDataTable">Show measurement values at simulation start</string>
     <string name="key_showDataTable_tt">When the simulation is started, a table with the measured values is shown.</string>
     <string name="key_termHeight">Lines</string><!-- Terminal -->
@@ -1148,11 +1236,19 @@
     <string name="key_relayNormallyClosed_tt">If set the relay is closed if the input is low.</string>
     <string name="key_poles">Pole count</string><!-- Relay -->
     <string name="key_poles_tt">Number of poles available.</string>
-    <string name="key_commonCathode">Common Cathode</string><!-- Seven-Seg -->
-    <string name="key_commonCathode_tt">If selected the common cathode input is also simulated.</string>
+    <string name="key_commonCathode">Common Connection</string><!-- Seven-Seg -->
+    <string name="key_commonCathode_tt">If selected, a common cathode or anode input is also simulated.</string>
+    <string name="key_commonConnectionType">Common</string>
+    <string name="key_commonConnectionType_tt">Kind of common connection.</string>
+    <string name="key_commonConnectionType_cathode">Cathode</string>
+    <string name="key_commonConnectionType_anode">Anode</string>
+
     <string name="key_ledPersistence">Avoid Flicker</string><!-- Seven-Seg, LedMatrix -->
-    <string name="key_ledPersistence_tt">It is not possible to increase the frequency so much that the flickering disappears.
-        With this option you can stabilize the display by keeping the LEDs on until the common cathode goes down again.
+    <string name="key_ledPersistence_tt">It is not possible to increase the frequency so much that the flickering
+        disappears.
+        In order to suppress the flickering nevertheless, a "afterglow" can be switched on for the LEDs with this
+        option.
+        If enabled, the LEDs remain on, even if one of the pins changes to high-z.
         This simulates a frequency above the critical flicker fusion frequency.</string>
     <string name="key_atf1502Fitter">ATF15xx Fitter</string>
     <string name="key_atf1502Fitter_tt">Path to the fitter for the ATF15xx.
@@ -1193,6 +1289,8 @@
         It must be ensured that the names of all files in this folder and all subfolders are unique.</string>
     <string name="key_grid">Show Grid</string>
     <string name="key_grid_tt">Shows a grid in the main window.</string>
+    <string name="key_wireToolTips">Wire tool tips</string>
+    <string name="key_wireToolTips_tt">If set, lines are highlighted when the mouse hovers over them.</string>
     <string name="key_mapToKey">Map to keyboard</string><!-- Button -->
     <string name="key_mapToKey_tt">Button is mapped to the keyboard.
         To use the cursor keys use UP, DOWN, LEFT or RIGHT as label.</string>
@@ -1229,15 +1327,23 @@
     <string name="key_externalOutputs">Outputs</string>
     <string name="key_externalOutputs_tt">The outputs of the external process.
         It is a comma-separated list of signal names. For each signal name, with a colon separated, a number of bits
-        can be specified. The outputs of an 8-bit adder could thus be described as "s:8,c_out".</string>
+        can be specified. The outputs of an 8-bit adder could thus be described as "s:8,c_out".
+    </string>
     <string name="key_Code">Programcode</string>
     <string name="key_Code_tt">The programm code to be executed by the external application.</string>
+    <string name="attr_panel_Options">Options</string>
     <string name="key_ghdlPath">GHDL</string>
     <string name="key_ghdlPath_tt">Path to the executable ghdl file. Only necessary if you want to use ghdl to simulate
-        components defined with vhdl.</string>
+        components defined with vhdl.
+    </string>
+    <string name="key_ghdlOptions">GHDL Options</string>
+    <string name="key_ghdlOptions_tt">Options that are used for all processing steps by GHDL.</string>
+
     <string name="key_iverilogPath">IVerilog</string>
-    <string name="key_iverilogPath_tt">Path to the Icarus verilog installation folder. Only necessary if you want to use iverilog to simulate
-        components defined with verilog.</string>
+    <string name="key_iverilogPath_tt">Path to the Icarus verilog installation folder. Only necessary if you want to use
+        iverilog to simulate
+        components defined with verilog.
+    </string>
     <string name="key_maxValue">Maximum Value</string>
     <string name="key_maxValue_tt">If a zero is entered, the maximum possible value is used (all bits are one).</string>
 
@@ -1249,6 +1355,9 @@
     <string name="key_noComponentToolTips">No tool tips for components on the main panel.</string>
     <string name="key_noComponentToolTips_tt">If set, no tool tips for the components on the main panel are displayed.
         Especially in a presentation, these tool tips can be very annoying.</string>
+    <string name="key_tunnelRenameDialog">Show dialog for automatic renaming of tunnels.</string>
+    <string name="key_tunnelRenameDialog_tt">If set, a dialog for automatically renaming all tunnels of the same name is displayed after a
+        tunnel has been renamed.</string>
 
     <string name="key_ATMISP">ATMISP</string>
     <string name="key_ATMISP_tt">Path to the executable file ATMISP.exe. If set, the ATMISP software can be started automatically!</string>
@@ -1312,13 +1421,8 @@
     <string name="key_midiInstrument">MIDI instrument</string>
     <string name="key_midiInstrument_tt">The MIDI instrument to use.</string>
     <string name="key_midiProgChange">Allow program change</string>
-    <string name="key_midiProgChange_tt">Adds  a new input PC. If this input is set to high,
-        the value at input N is used to change te program (instrument).</string>
-
-    <string name="key_transistors">Transistors</string>
-    <string name="key_transistors_tt">Number of transistors required. Used for circuit statistics.
-        Zero means that the number is determined automatically by adding the number of transistors
-        of the components contained in the circuit.</string>
+    <string name="key_midiProgChange_tt">Adds a new input PC. If this input is set to high,
+        the value at input N is used to change the program (instrument).</string>
 
     <string name="key_enabled">Enabled</string>
     <string name="key_enabled_tt">Enables or disables this component.</string>
@@ -1326,6 +1430,75 @@
     <string name="key_toolChainConfig">Toolchain Configuration</string>
     <string name="key_toolChainConfig_tt">Used to configurate an integration of a toolchain.
         Allows the start of external tools, e.g. to program an FPGA or similar.</string>
+
+    <string name="key_generic">Generic Parameterization</string>
+    <string name="key_generic_tt">Statements used to generify a circuit.</string>
+
+    <string name="key_isGeneric">Circuit is generic</string>
+    <string name="key_isGeneric_tt">Allows to create a generic circuit.</string>
+
+    <string name="key_showTutorial">Show Tutorial at Startup</string>
+    <string name="key_showTutorial_tt">Enables the tutorial.</string>
+
+    <string name="key_switchActsAsInput">Switch behaves like an input</string>
+    <string name="key_switchActsAsInput_tt">If the model is analyzed, the switch behaves like an input, where "open" corresponds to '0' and "closed" to '1'.</string>
+
+    <string name="menu_exportSVGSettings">SVG Export Settings</string>
+    <string name="key_SVG_LaTeX">Text in LaTeX notation</string>
+    <string name="key_SVG_LaTeX_tt">Text is inserted in LaTeX notation. Inkscape is required for further processing.</string>
+    <string name="key_SVG_pinsInMathMode">Pin-Labels in Math Mode</string>
+    <string name="key_SVG_pinsInMathMode_tt">For pin labels, use math mode even if no indexes are contained.</string>
+    <string name="key_SVG_hideTest">Hide Test Cases</string>
+    <string name="key_SVG_hideTest__">The test cases are not exported.</string>
+    <string name="key_SVG_noShapeFilling">Shapes not filled</string>
+    <string name="key_SVG_noShapeFilling_tt">Polygons are not filled.</string>
+    <string name="key_SVG_smallIO">Small Inputs and Outputs</string>
+    <string name="key_SVG_smallIO_tt">Inputs and outputs are represented as small circles.</string>
+    <string name="key_SVG_noPinMarker">Leave out Pin Marker</string>
+    <string name="key_SVG_noPinMarker_tt">The blue and red pin markers on the symbols are omitted.</string>
+    <string name="key_SVG_highContrast">High Contrast</string>
+    <string name="key_SVG_highContrast_tt">The wires and the text of the pins are displayed in black.</string>
+    <string name="key_SVG_monochrome">Monochrome</string>
+    <string name="key_SVG_monochrome_tt">Only gray colors are used.</string>
+    <string name="key_SVG_thinnerLines">Thin Lines</string>
+    <string name="key_SVG_thinnerLines_tt">If set, the lines are drawn slightly thinner.</string>
+
+    <string name="key_equalsInsteadOfPlus">Use Equals-Key</string>
+    <string name="key_equalsInsteadOfPlus_tt">Use the equal key instead of the plus key.
+        This is always useful if the plus character is not a primary key, but the second assignment of the
+        equals character, e.g. for an American or French keyboard layout.
+    </string>
+
+    <string name="key_snapToGrid">Snap To Grid</string>
+    <string name="key_snapToGrid_tt">If set, the component is aligned with the grid.</string>
+
+    <string name="key_layoutShapeDelta">Pin Separator</string>
+    <string name="key_layoutShapeDelta_tt">Used by the layout shape type. Sets the distance to the previous pin.
+    </string>
+
+    <string name="key_colorScheme">Color-Scheme</string>
+    <string name="key_colorScheme_DEFAULT">Normal</string>
+    <string name="key_colorScheme_DARK">Dark</string>
+    <string name="key_colorScheme_COLOR_BLIND">red/green colorblind</string>
+    <string name="key_colorScheme_CUSTOM">User Defined</string>
+    <string name="key_customColorScheme">User Defined Colors</string>
+    <string name="menu_colorSchemePreset">Preset</string>
+    <string name="colorName_BACKGROUND">Background</string>
+    <string name="colorName_MAIN">Foreground</string>
+    <string name="colorName_WIRE">Wire</string>
+    <string name="colorName_WIRE_HIGH">Wire HIGH</string>
+    <string name="colorName_WIRE_LOW">Wire LOW</string>
+    <string name="colorName_WIRE_VALUE">Value at the wire</string>
+    <string name="colorName_WIRE_OUT">Output</string>
+    <string name="colorName_WIRE_Z">Wire HIGH-Z</string>
+    <string name="colorName_ERROR">Error</string>
+    <string name="colorName_PASSED">Ok</string>
+    <string name="colorName_PINS">Pins</string>
+    <string name="colorName_GRID">Grid</string>
+    <string name="colorName_TESTCASE">Test case</string>
+    <string name="colorName_DISABLED">Disabled</string>
+    <string name="colorName_ASYNC">Asynchronous</string>
+    <string name="colorName_HIGHLIGHT">Highlighted</string>
 
     <string name="mod_insertWire">Inserted wire.</string>
     <string name="mod_insertCopied">Insert from clipboard.</string>
@@ -1356,9 +1529,52 @@
     <string name="lib_switching">Switches</string>
     <string name="lib_misc">Misc.</string>
     <string name="lib_more">more</string>
+    <string name="lib_displays">Displays</string>
+    <string name="lib_mechanic">Mechanical</string>
+    <string name="lib_peripherals">Peripherals</string>
     <string name="lib_ram">RAM</string>
     <string name="lib_eeprom">EEPROM</string>
 
+    <string name="cli_cli">Command Line Interface</string>
+    <string name="cli_nonOptionalArgumentMissing_N">The non-optional argument {0} is missing.</string>
+    <string name="cli_notABool_N">The value {0} is no bool.</string>
+    <string name="cli_notANumber_N">The value {0} is not a number.</string>
+    <string name="cli_noArgument_N_available">The argument {0} is not defined.</string>
+    <string name="cli_notEnoughArgumentsGiven">There are not enough arguments.</string>
+    <string name="cli_toMuchArguments">There are too many arguments.</string>
+    <string name="cli_invalidType_N">Invalid type.</string>
+    <string name="cli_command_N_hasNoSubCommand_N">The command {0} has no sub-command {1}.</string>
+    <string name="cli_options">Options:</string>
+
+    <string name="cli_help_test">The first file name specifies the circuit to be tested.
+        If a second file name is specified, the test cases are executed from this file.
+        If no second file name is specified, the tests are executed from the first file.
+    </string>
+    <string name="cli_help_test_circ">Name of the file to be tested.</string>
+    <string name="cli_help_test_tests">Name of a file with test cases.</string>
+    <string name="cli_help_test_allowMissingInputs">Allows the missing of inputs in the circuit which are
+        defined in the test case. This can be useful if there are several possible solutions which may
+        depend on different inputs.
+    </string>
+    <string name="cli_thereAreTestFailures">Tests have failed.</string>
+    <string name="cli_errorExecutingTests">An error has occurred during the execution of the tests.</string>
+
+    <string name="cli_help_svg">Can be used to create an SVG file from a circuit.</string>
+    <string name="cli_help_svg_dig">The file name of the circuit.</string>
+    <string name="cli_help_svg_svg">The name of the SVG file to be written.</string>
+    <string name="cli_help_svg_ieee">Use of the IEEE symbols.</string>
+    <string name="cli_errorCreatingSVG">Error while creating the SVG file!</string>
+
+    <string name="cli_help_stats">Creates a CSV file which contains the circuit statistics.
+        All components used are listed in the CSV file.
+    </string>
+    <string name="cli_help_stats_dig">File name of the circuit.</string>
+    <string name="cli_help_stats_csv">Name of the csv file to be created.
+        If this option is missing, the table is written to stdout.
+    </string>
+    <string name="cli_errorCreatingStats">Error while creating the stats file!</string>
+
+    <string name="menu_window">Windows</string>
     <string name="menu_about">About</string>
     <string name="menu_analyse">Analysis</string>
     <string name="menu_analyse_tt">Analyses the actual circuit</string>
@@ -1384,8 +1600,6 @@
     <string name="menu_exportPNGLarge">Export PNG large</string>
     <string name="menu_exportPNGSmall">Export PNG small</string>
     <string name="menu_exportSVG">Export SVG</string>
-    <string name="menu_exportSVGLaTex">Export SVG + LaTeX</string>
-    <string name="menu_exportSVGLaTexInOut">Export SVG + LaTeX + small in/out</string>
     <string name="menu_exportAnimatedGIF">Export Animated GIF</string>
     <string name="menu_fast">Run to Break</string>
     <string name="menu_fast_tt">Runs the circuit until a break is detected by a BRK component.</string>
@@ -1424,9 +1638,12 @@
     <string name="menu_saveData_tt">Save data as CSV file</string>
     <string name="menu_speedTest">Speed Test</string>
     <string name="menu_speedTest_tt">Performs a speed test by calculating the max. clock frequency.</string>
-    <string name="menu_step">Step</string>
-    <string name="menu_step_tt">Calculating a single gate step</string>
-    <string name="menu_synthesise">Synthesise</string>
+    <string name="menu_step">Gate Step</string>
+    <string name="menu_step_tt">Calculates a single gate step</string>
+    <string name="menu_runToBreakMicro">Run To Break in Single Gate Mode</string>
+    <string name="menu_runToBreakMicro_tt">Executes all single gate steps until a rising edge is detected on a break component.
+        If there is no break component, the remaining single gate steps are executed.</string>
+    <string name="menu_synthesise">Synthesis</string>
     <string name="menu_synthesise_tt">Generates the minimal bool expressions described by a truth table.</string>
     <string name="menu_table_N_variables">{0} variables</string>
     <string name="menu_table_create">Create</string>
@@ -1454,20 +1671,27 @@
     <string name="menu_table_create_hardware">Device</string>
     <string name="menu_table_create_jedec_tt">Creates a JEDEC file for the device</string>
     <string name="menu_table_exportTableLaTeX">Export LaTeX</string>
+    <string name="menu_table_exportTablePlainText">Export Plain Text</string>
+    <string name="menu_table_createFunctionFixture">Export Test Case</string>
+    <string name="menu_table_createFunctionFixture_tt">Creates a test case description that can be used in a test
+        case.
+    </string>
+    <string name="menu_table_createFunctionFixture_isSequential">The test case is only functional if the circuit is
+        purely combinatorial!
+    </string>
+
     <string name="menu_table_exportHex">Export HEX</string>
     <string name="menu_table_exportHex_tt">You can load the HEX file to a ROM or a LUT.</string>
     <string name="menu_table_new">New</string>
     <string name="menu_table_new_combinatorial">Combinatorial</string>
     <string name="menu_table_new_sequential">Sequential</string>
     <string name="menu_table_new_sequential_bidir">Sequential bidirectional</string>
-    <string name="menu_table_columns">Columns</string>
     <string name="menu_table_reorder_inputs">Reorder/Delete Input Variables</string>
     <string name="menu_table_columnsAddVariable">Add Input Variable</string>
     <string name="menu_table_columnsAddVariable_tt">Adds a new input variable to the table.</string>
     <string name="menu_table_reorder_outputs">Reorder/Delete Output Columns</string>
     <string name="menu_table_columnsAdd">Add Output Column</string>
     <string name="menu_table_columnsAdd_tt">Adds a new result column to the table.</string>
-    <string name="menu_table_set">Set</string>
     <string name="menu_table_setXTo0">Set X to 0</string>
     <string name="menu_table_setXTo0_tt">Sets the Don't Cares to 0.</string>
     <string name="menu_table_setXTo1">Set X to 1</string>
@@ -1479,6 +1703,10 @@
     <string name="menu_table_setAllTo0_tt">Set all values to zero.</string>
     <string name="menu_table_setAllTo1">Set all to 1</string>
     <string name="menu_table_setAllTo1_tt">Set all values to one.</string>
+    <string name="menu_table_invert">Invert all bits</string>
+    <string name="menu_table_invert_tt">A "1" becomes a "0" and vice versa. Don't cares remain unchanged.</string>
+    <string name="menu_table_showAllSolutions">Show results dialog</string>
+    <string name="menu_table_showAllSolutions_tt">Shows the results dialog again if it was closed manually.</string>
     <string name="menu_terminalDelete">Delete</string>
     <string name="menu_terminalDelete_tt">Delete the terminals content.</string>
     <string name="menu_view">View</string>
@@ -1504,7 +1732,7 @@
     <string name="menu_karnaughMap">K-Map</string>
     <string name="menu_karnaughMap_tt">Shows a K-map representation of the Table!</string>
 
-    <string name="menu_special">Special 74xx Funtions</string>
+    <string name="menu_special">Special 74xx Functions</string>
     <string name="menu_addPrefix">Add IO-Prefix</string>
     <string name="menu_addPrefix_tt">A prefix is added to all selected inputs and outputs.
         Is used to simplify the doubling of circuits within a 74xx circuit.</string>
@@ -1545,17 +1773,21 @@
     <string name="menu_labelPins">Label Inputs and Outputs</string>
     <string name="menu_labelPins_tt">Set a label to all inputs and outputs without a label.</string>
 
+    <string name="menu_tutorial">Start Tutorial</string>
+    <string name="menu_tutorial_tt">Starts the beginner tutorial.</string>
+
     <string name="menu_stats">Circuit Statistics</string>
     <string name="menu_stats_tt">Shows a list of used components.</string>
     <string name="stat_number">Number</string>
     <string name="stat_part">Component</string>
-    <string name="stat_transistors">Trans.</string>
-    <string name="stat_transistorsTotal">Trans. total</string>
-    <string name="stat_sum">Sum</string>
+    <string name="stat_inputs">Inputs</string>
+    <string name="stat_bits">Bits</string>
+    <string name="stat_addrBits">Addr. Bits</string>
 
+    <string name="msg_keyAsGenericAttribute">Name to use in generic circuits: {0}</string>
 
     <string name="message">&lt;h1&gt;Digital&lt;/h1&gt;A simple simulator for digital circuits.
-        Written by H. Neemann in 2016-2019.
+        Written by H. Neemann in 2016-2020.
 
         The icons are taken from the &lt;a href=&quot;http://tango.freedesktop.org&quot;&gt;Tango Desktop Project&lt;/a&gt;.
 
@@ -1567,7 +1799,6 @@
     </string>
     <string name="msg_N_nodes">{0} nodes</string>
     <string name="msg_analyseErr">Error analysing the circuit</string>
-    <string name="msg_clockError">Error during a clock state change</string>
     <string name="msg_color">Color</string>
     <string name="msg_errorCalculatingStep">Error calculating a step</string>
     <string name="msg_errorCreatingModel">Error creating the circuit</string>
@@ -1578,7 +1809,6 @@
     <string name="msg_errorUpdatingLibrary">Error updating the component library!!</string>
     <string name="msg_errorReadingFile">Error reading a file</string>
     <string name="msg_errorWritingFile">Error writing a file</string>
-    <string name="msg_fastRunError">Error at fast run</string>
     <string name="msg_frequency_N">The maximum frequency is {0} kHz</string>
     <string name="msg_missingShape_N">Shape {0} is missing</string>
     <string name="msg_pins">Pin assignment</string>
@@ -1653,6 +1883,8 @@
     <string name="btn_checkCode_tt">Starts the application to check if the entered code is correct.
         If this is not the case, the error message of the external application is displayed.
         If possible, the input and output definitions are also adapted to the current code.</string>
+    <string name="msg_codeNotConsistent">Input and output definitions could not be created automatically.
+        Please check the settings!</string>
     <string name="msg_applicationFileNotFound">Executable file "{0}" not found!</string>
     <string name="msg_enterText">Enter Text!</string>
 
@@ -1675,6 +1907,17 @@ Make sure the flash process is complete before closing this dialog!</string>
     <string name="msg_errorReadingToolchainConfig_N">Error while reading the toolchain configuration {0}</string>
     <string name="msg_commandStarted_N">Command "{0}" has been started! Processing may take some time!</string>
     <string name="msg_commandEnded_N">The command "{0}" has been completed!</string>
+
+    <string name="msg_renameNet">Rename Net</string>
+    <string name="msg_renameNet_N_OLD_NEW">There are {0} more tunnels with the net name ''{1}''.
+        Do you want to rename all {0} to ''{2}''?
+    </string>
+
+    <string name="msg_dataWillBeLost_n">Do you really want to discard the changes in the "{0}" field?</string>
+
+    <string name="msg_supportsHDL">Exportable to VHDL/Verilog.</string>
+
+    <string name="err_vgaModeNotDetected_N">Video mode was not detected ({0})</string>
 
     <string name="ok">OK</string>
     <string name="rot_0">0°</string>
@@ -1701,6 +1944,8 @@ Make sure the flash process is complete before closing this dialog!</string>
     <string name="win_karnaughMap">Karnaugh Map</string>
 
     <string name="btn_help">Help</string>
+    <string name="btn_copyToClipboard">Clipboard</string>
+    <string name="btn_copyToClipboard_tt">Copies the text to the clipboard.</string>
 
     <string name="win_romDialogHelpTitle">Central ROM Content</string>
     <string name="msg_romDialogHelp"><![CDATA[
@@ -1807,6 +2052,22 @@ loop(a,16)
 end loop
 </pre>
 
+<p>Under certain circumstances it may be necessary to be able to react to the initial
+state of the circuit. Therefore the signals provided in the circuit can be used within
+the test case. For example, if a counter that starts in an undefined state is to be
+tested, it can be clocked to a defined state:</p>
+
+<pre>C Q_3 Q_2 Q_1 Q_0
+
+# clock counter to 1111
+while(!(Q_3 & Q_2 & Q_1 & Q_0))
+C x x x x
+end while
+
+# start the test execution
+repeat(16) C bits(4,n)
+</pre>
+
 <p>It may be helpful to generate random numbers in test cases.
 These can be created with the function 'random([n])'. The generated number is greater
 than or equal to zero and less than [n]. Considering a 16-bit multiplier as an example,
@@ -1855,7 +2116,7 @@ Therefore, the signal 'D_out' is also available to check the value in this case.
     <string name="err_fsmNumberUsedTwice_N">State Number {0} used twice.</string>
     <string name="err_fsmNoInitialState">There is no initial state (state number zero).</string>
     <string name="err_fsmState_N_notFound">State ''{0}'' not found!</string>
-    <string name="err_fsmInvalidOutputAssignment_N">Wrong  assignment to output (''{0}'')!</string>
+    <string name="err_fsmInvalidOutputAssignment_N">Wrong assignment to output (''{0}'')!</string>
     <string name="err_fsmErrorInCondition_N">Error in condition ''{0}''!</string>
     <string name="key_stateNum">State Number</string>
     <string name="key_stateNum_tt">The number which represents this state.</string>
@@ -1866,12 +2127,15 @@ Therefore, the signal 'D_out' is also available to check the value in this case.
         With simple assignments like "A=1, B=0" outputs can be set.
         With instructions like "A=101", multi-bit outputs can be set.
         Outputs that are not defined here are set to zero in states.
-        For transitions, unspecified outputs remain unchanged.</string>
+        For transitions, unspecified outputs remain unchanged.
+    </string>
     <string name="key_transCond">Condition</string>
     <string name="key_transCond_tt">A boolean expression.</string>
     <string name="key_transRad">Radius</string>
     <string name="key_transRad_tt">Radius of the circle in the diagram.</string>
     <string name="msg_fsmCantCreateTable">Can not create state transition table.</string>
+    <string name="msg_fsmTransition">Transition</string>
+    <string name="msg_fsmState">State</string>
     <string name="msg_fsmNewState">New State</string>
     <string name="msg_fsm_errorLoadingFile">Error loading a file!</string>
     <string name="msg_fsm_errorStoringFile">Error storing a file!</string>
@@ -1911,4 +2175,77 @@ Therefore, the signal 'D_out' is also available to check the value in this case.
   transition condition is met.
 </body></html>]]></string>
 
+    <string name="msg_graphHelpTitle">The measurement graph</string>
+    <string name="msg_graphHelp"><![CDATA[
+        <html><body>
+        <h3>What can be seen in the graph?</h3>
+        Unlike a real logic analyzer, the X-axis of the measurement graph does not show the time.
+        Instead a counter is displayed which counts the changes of state in the circuit.
+        Whenever there is a change in the circuit, the counter is incremented and the new state is displayed.<br/>
+        You can also think of it as a classic logic analyzer, which does not save any data for optimization
+        if nothing has changed in the circuit.
+        However, this also means that it is not possible to read from the graph whether a lot or little time has
+        passed between two changes in the circuit.<br/>
+        This behavior is caused by the nature of the simulation: The simulation of the circuit does not know the
+        concept of time. A change is made to the circuit, and the change in the circuit state is calculated, until
+        the circuit has stabilized again. Then the next change is made, the effect of which is also is calculated
+        and so on. These changes are counted and the counter value is displayed on the X-axis of the graph.<br/>
+        Among other things, this also means that a circuit cannot be overclocked, since the effects of the falling 
+		edge of the clock are not calculated until the circuit has stabilized after the previous rising edge.
+        </body></html>
+    ]]></string>
+
+    <string name="tutorial">Tutorial</string>
+    <string name="tutorial1">In the following a short tutorial leads you to the first, simple circuit:
+
+        First, insert an input into the circuit. You will find the input in the menu Components▸IO.
+    </string>
+    <string name="tutorial2">Now add a second input to the circuit. You can also click on the input
+        in the toolbar.
+
+        It is best to place the second input slightly below the first input.
+        You can move the circuit by holding down the right mouse button.
+        By clicking on components you can move them.</string>
+    <string name="tutorial3">Next, an "Exclusive Or" gate is to be inserted.
+        You can find this gate in the menu Components▸Logic.
+        Place this component with some distance to the right of the inputs.</string>
+    <string name="tutorial4">The last component to be inserted is an output.
+        Place it with some distance to the right of the "Exclusive Or" gate.
+    </string>
+    <string name="tutorial5">In order to complete the circuit, connecting wires must be drawn.
+
+        Click on the red dot at the first input and connect it to an input of the "Exclusive Or" gate,
+        by clicking on a blue dot of the "Exclusive Or" gate afterwards.
+        Do NOT drag with mouse button down!
+    </string>
+    <string name="tutorial6">Connect the red dot of the second input to the second blue dot of the
+        "Exclusive Or" gate and the red dot of the "Exclusive Or" gate to the blue dot of the output.
+
+        While drawing, you can pin the wire by clicking somewhere on the canvas.
+        Right-click cancels the drawing of the wire (control-click on MacOS).
+    </string>
+    <string name="tutorial7">Your first circuit is now functional.
+        To start the simulation, you can click on the Play button in the toolbar.
+        If you move the mouse over the toolbar, tool tips are shown.
+    </string>
+    <string name="tutorial8">
+        The simulation is now active. Switch the inputs by clicking on them.
+    </string>
+    <string name="tutorial9">
+        To stop the simulation, click on the Stop button in the toolbar.
+    </string>
+    <string name="tutorial10">
+        For completeness, the inputs and outputs should be labeled.
+
+        Right-click on an input to open a dialog. On MacOS control-click is used.
+        Here the input can be given a name.</string>
+    <string name="tutorial11">
+        Label all inputs and outputs.
+    </string>
+    <string name="tutorialUniqueIdents">
+        Inputs and outputs should always be uniquely named.
+    </string>
+    <string name="tutorialNotNeeded">
+        Skip Tutorial
+    </string>
 </resources>

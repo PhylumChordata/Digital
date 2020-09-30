@@ -7,10 +7,13 @@ package de.neemann.digital.integration;
 
 import de.neemann.digital.core.Model;
 import de.neemann.digital.core.NodeException;
-import de.neemann.digital.core.memory.*;
+import de.neemann.digital.core.ObservableValue;
+import de.neemann.digital.core.memory.DataField;
+import de.neemann.digital.core.memory.RAMDualPort;
+import de.neemann.digital.core.memory.RAMSinglePort;
+import de.neemann.digital.core.memory.ROM;
 import de.neemann.digital.core.memory.importer.Importer;
 import de.neemann.digital.draw.elements.PinException;
-import de.neemann.digital.draw.library.ElementNotFoundException;
 import junit.framework.TestCase;
 
 import java.io.File;
@@ -20,12 +23,8 @@ import java.io.IOException;
  */
 public class TestProcessor extends TestCase {
 
-    private ToBreakRunner createProcessor(String program) throws IOException, PinException, NodeException, ElementNotFoundException {
-        return createProcessor(program, "../../main/dig/processor/Processor.dig");
-    }
-
-    private ToBreakRunner createProcessor(String program, String processor) throws IOException, PinException, NodeException, ElementNotFoundException {
-        ToBreakRunner runner = new ToBreakRunner(processor, false);
+    private ToBreakRunner createProcessor(String program) throws Exception {
+        ToBreakRunner runner = new ToBreakRunner("../../main/dig/processor/Processor.dig", false);
         Model model = runner.getModel();
 
         ROM rom = null;
@@ -41,6 +40,22 @@ public class TestProcessor extends TestCase {
         return runner;
     }
 
+    private ToBreakRunner createProcessorMux(String program) throws Exception {
+        ToBreakRunner runner = new ToBreakRunner("../../main/dig/processor/ProcessorMux.dig", false);
+        Model model = runner.getModel();
+
+        ObservableValue instr = model.getInput("Instr");
+        ObservableValue pc = model.getOutput("PC");
+        assertNotNull(instr);
+        assertNotNull(pc);
+
+        DataField data = Importer.read(new File(Resources.getRoot(), program), 16);
+        pc.addObserverToValue(() -> instr.setValue(data.getDataWord((int) pc.getValue()))).fireHasChanged();
+
+        runner.getModel().init(true);
+        return runner;
+    }
+
     /**
      * Loads the simulated processor, and loads a program that calculates the 15th
      * fibonacci number with a simple recursive algorithm. The result (610) is stored in the first RAM word.
@@ -49,7 +64,7 @@ public class TestProcessor extends TestCase {
      * @throws NodeException NodeException
      * @throws PinException  PinException
      */
-    public void testFibonacci() throws IOException, NodeException, PinException, ElementNotFoundException {
+    public void testFibonacci() throws Exception {
         RAMSinglePort ram =
                 createProcessor("programs/fibonacci.hex")
                         .runToBreak(98644)
@@ -66,8 +81,8 @@ public class TestProcessor extends TestCase {
      * @throws NodeException NodeException
      * @throws PinException  PinException
      */
-    public void testFibonacciMux() throws IOException, NodeException, PinException, ElementNotFoundException {
-        ToBreakRunner processor = createProcessor("programs/fibonacci.hex", "../../main/dig/processor/ProcessorMux.dig");
+    public void testFibonacciMux() throws Exception {
+        ToBreakRunner processor = createProcessorMux("programs/fibonacci.hex");
         processor.getModel().getInput("reset").setBool(false);
         RAMDualPort ram = processor
                 .runToBreak(98644)
@@ -85,7 +100,7 @@ public class TestProcessor extends TestCase {
      * @throws NodeException NodeException
      * @throws PinException  PinException
      */
-    public void testProcessorSelfTest() throws IOException, NodeException, PinException, ElementNotFoundException {
+    public void testProcessorSelfTest() throws Exception {
         RAMSinglePort ram =
                 createProcessor("programs/selftest.hex")
                         .runToBreak(700)
@@ -102,8 +117,8 @@ public class TestProcessor extends TestCase {
      * @throws NodeException NodeException
      * @throws PinException  PinException
      */
-    public void testProcessorSelfTestMux() throws IOException, NodeException, PinException, ElementNotFoundException {
-        ToBreakRunner processor = createProcessor("programs/selftest.hex", "../../main/dig/processor/ProcessorMux.dig");
+    public void testProcessorSelfTestMux() throws Exception {
+        ToBreakRunner processor = createProcessorMux("programs/selftest.hex");
         processor.getModel().getInput("reset").setBool(false);
         RAMDualPort ram = processor
                 .runToBreak(700)
@@ -111,6 +126,5 @@ public class TestProcessor extends TestCase {
 
         assertEquals(2, ram.getMemory().getDataWord(256));
     }
-
 
 }

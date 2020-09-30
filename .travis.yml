@@ -1,6 +1,6 @@
 language: java
 jdk:
-  - oraclejdk8
+  - openjdk8
 sudo: false
 script:
   - "mvn clean install"
@@ -14,6 +14,7 @@ deploy:
   file:
     - target/Digital.zip
     - target/docuDist/Doc_*.pdf
+  file_glob: true
   skip_cleanup: true
   on:
     tags: true

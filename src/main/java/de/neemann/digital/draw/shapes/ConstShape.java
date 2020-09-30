@@ -5,7 +5,6 @@
  */
 package de.neemann.digital.draw.shapes;
 
-import de.neemann.digital.core.Observer;
 import de.neemann.digital.core.Value;
 import de.neemann.digital.core.element.ElementAttributes;
 import de.neemann.digital.core.element.Keys;
@@ -47,13 +46,13 @@ public class ConstShape implements Shape {
     }
 
     @Override
-    public Interactor applyStateMonitor(IOState ioState, Observer guiObserver) {
+    public Interactor applyStateMonitor(IOState ioState) {
         return null;
     }
 
     @Override
     public void drawTo(Graphic graphic, Style heighLight) {
         Vector textPos = new Vector(-3, 0);
-        graphic.drawText(textPos, textPos.add(1, 0), value, Orientation.RIGHTCENTER, Style.NORMAL);
+        graphic.drawText(textPos, value, Orientation.RIGHTCENTER, Style.NORMAL);
     }
 }

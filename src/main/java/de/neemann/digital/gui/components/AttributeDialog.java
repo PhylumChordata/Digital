@@ -18,6 +18,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -33,13 +35,13 @@ import java.util.List;
  */
 public class AttributeDialog extends JDialog {
     private final java.util.List<EditorHolder> editors;
-    private final JPanel panel;
     private final Window parent;
     private final Point pos;
     private final ElementAttributes originalAttributes;
     private final ElementAttributes modifiedAttributes;
     private final JPanel buttonPanel;
-    private final ConstraintsBuilder constraints;
+    private final AbstractAction okAction;
+    private final EditorPanel primaryPanel;
     private HashMap<Key, JCheckBox> checkBoxes;
     private JComponent topMostTextComponent;
     private VisualElement visualElement;
@@ -91,38 +93,38 @@ public class AttributeDialog extends JDialog {
      */
     public AttributeDialog(Window parent, Point pos, java.util.List<Key> list, ElementAttributes elementAttributes, boolean addCheckBoxes) {
         super(parent, Lang.get("attr_dialogTitle"), ModalityType.APPLICATION_MODAL);
+        setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
         this.parent = parent;
         this.pos = pos;
         this.originalAttributes = elementAttributes;
         this.modifiedAttributes = new ElementAttributes(elementAttributes);
-        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 
-        panel = new JPanel(new GridBagLayout());
+        ArrayList<EditorPanel> panels = new ArrayList<EditorPanel>();
+        primaryPanel = new EditorPanel(EditorPanel.PRIMARY);
+        panels.add(primaryPanel);
 
         editors = new ArrayList<>();
 
         topMostTextComponent = null;
-        constraints = new ConstraintsBuilder().inset(3).fill();
 
-        JPanel secondaryPanel = null;
-        ConstraintsBuilder secondaryConstraints = null;
-
-        boolean enableTwoTabs = !addCheckBoxes && enableTwoTabs(list);
-
-        if (enableTwoTabs) {
-            secondaryPanel = new JPanel(new GridBagLayout());
-            secondaryConstraints = new ConstraintsBuilder().inset(3).fill();
+        EditorPanel secondaryPanel = null;
+        if (!addCheckBoxes && enableTwoTabs(list)) {
+            secondaryPanel = new EditorPanel(EditorPanel.SECONDARY);
+            panels.add(secondaryPanel);
         }
 
-        boolean isSecondary = false;
         for (Key key : list) {
             Editor e = EditorFactory.INSTANCE.create(key, modifiedAttributes.get(key));
             editors.add(new EditorHolder(e, key));
-            if (key.isSecondary() && enableTwoTabs) {
-                e.addToPanel(secondaryPanel, key, modifiedAttributes, this, secondaryConstraints);
-                isSecondary = true;
-            } else
-                e.addToPanel(panel, key, modifiedAttributes, this, constraints);
+            EditorPanel panelToUse = primaryPanel;
+            if (key.isSecondary() && secondaryPanel != null)
+                panelToUse = secondaryPanel;
+
+            if (key.getPanelId() != null)
+                panelToUse = findPanel(panels, key.getPanelId());
+
+
+            e.addToPanel(panelToUse, key, modifiedAttributes, this);
 
             if (addCheckBoxes) {
                 if (checkBoxes == null)
@@ -131,14 +133,11 @@ public class AttributeDialog extends JDialog {
                 checkBox.setSelected(true);
                 checkBox.setToolTipText(Lang.get("msg_modifyThisAttribute"));
                 checkBoxes.put(key, checkBox);
-                panel.add(checkBox, constraints.x(2));
+                panelToUse.add(checkBox, cb -> cb.x(2));
                 checkBox.addChangeListener(event -> e.setEnabled(checkBox.isSelected()));
             }
 
-            if (key.isSecondary() && enableTwoTabs)
-                secondaryConstraints.nextRow();
-            else
-                constraints.nextRow();
+            panelToUse.nextRow();
 
             if (topMostTextComponent == null && e instanceof EditorFactory.StringEditor)
                 topMostTextComponent = ((EditorFactory.StringEditor) e).getTextComponent();
@@ -154,16 +153,16 @@ public class AttributeDialog extends JDialog {
 
         }
 
-        if (isSecondary) {
+        if (panels.size() == 1) {
+            getContentPane().add(primaryPanel.getScrollPane());
+        } else {
             JTabbedPane tp = new JTabbedPane(JTabbedPane.TOP);
-            tp.addTab(Lang.get("attr_primary"), new JScrollPane(panel));
-            tp.addTab(Lang.get("attr_secondary"), new JScrollPane(secondaryPanel));
+            for (EditorPanel ep : panels)
+                tp.addTab(Lang.get(ep.getLangKey()), ep.getScrollPane());
             getContentPane().add(tp);
-        } else
-            getContentPane().add(new JScrollPane(panel));
+        }
 
-
-        JButton okButton = new JButton(new AbstractAction(Lang.get("ok")) {
+        okAction = new AbstractAction(Lang.get("ok")) {
             @Override
             public void actionPerformed(ActionEvent e) {
                 try {
@@ -172,7 +171,8 @@ public class AttributeDialog extends JDialog {
                     new ErrorMessage(Lang.get("msg_errorEditingValue")).addCause(err).show(AttributeDialog.this);
                 }
             }
-        });
+        };
+        JButton okButton = new JButton(okAction);
 
         final AbstractAction cancel = new AbstractAction(Lang.get("cancel")) {
             @Override
@@ -187,10 +187,55 @@ public class AttributeDialog extends JDialog {
 
         getContentPane().add(buttonPanel, BorderLayout.SOUTH);
 
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                EditorHolder majorModification = null;
+                for (EditorHolder eh : editors)
+                    if (eh.e.invisibleModification())
+                        majorModification = eh;
+                if (majorModification == null)
+                    dispose();
+                else {
+                    int r = JOptionPane.showOptionDialog(
+                            AttributeDialog.this,
+                            Lang.get("msg_dataWillBeLost_n", majorModification.key.getName()),
+                            Lang.get("msg_warning"),
+                            JOptionPane.YES_NO_OPTION,
+                            JOptionPane.WARNING_MESSAGE,
+                            null, new String[]{Lang.get("btn_discard"), Lang.get("cancel")},
+                            Lang.get("cancel"));
+                    if (r == JOptionPane.YES_OPTION)
+                        dispose();
+                }
+            }
+        });
+
         getRootPane().setDefaultButton(okButton);
         getRootPane().registerKeyboardAction(cancel,
                 KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
                 JComponent.WHEN_IN_FOCUSED_WINDOW);
+    }
+
+    private EditorPanel findPanel(ArrayList<EditorPanel> panels, String panelId) {
+        for (EditorPanel p : panels)
+            if (panelId.equals(p.getPanelId()))
+                return p;
+
+        EditorPanel p = new EditorPanel(panelId);
+        panels.add(p);
+        return p;
+    }
+
+    /**
+     * Sets the dialogs title
+     *
+     * @param title the dialogs title
+     * @return this for chained calls
+     */
+    public AttributeDialog setDialogTitle(String title) {
+        setTitle(title);
+        return this;
     }
 
     /**
@@ -238,9 +283,7 @@ public class AttributeDialog extends JDialog {
      * @return this for chained calls
      */
     AttributeDialog addButton(String label, ToolTipAction action) {
-        panel.add(new JLabel(label), constraints);
-        panel.add(action.createJButton(), constraints.x(1));
-        constraints.nextRow();
+        primaryPanel.addButton(label, action);
         return this;
     }
 
@@ -316,7 +359,7 @@ public class AttributeDialog extends JDialog {
     /**
      * @return true if ok is pressed
      */
-    boolean isOkPressed() {
+    public boolean isOkPressed() {
         return okPressed;
     }
 
@@ -345,6 +388,14 @@ public class AttributeDialog extends JDialog {
     public AttributeDialog setVisualElement(VisualElement visualElement) {
         this.visualElement = visualElement;
         return this;
+    }
+
+    /**
+     * Disables the ok button
+     */
+    public void disableOk() {
+        okAction.setEnabled(false);
+        okPressed = false;
     }
 
     private static final class EditorHolder<T> {

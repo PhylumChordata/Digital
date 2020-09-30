@@ -10,17 +10,19 @@ import de.neemann.digital.core.element.Element;
 import de.neemann.digital.core.element.ElementAttributes;
 import de.neemann.digital.core.element.ElementTypeDescription;
 import de.neemann.digital.core.element.Keys;
+import de.neemann.digital.core.stats.Countable;
 
 /**
  * A simple double throw switch
  */
-public class SwitchDT implements Element, NodeInterface {
+public class SwitchDT implements Element, NodeInterface, Countable {
 
     /**
      * The switch description
      */
     public static final ElementTypeDescription DESCRIPTION = new ElementTypeDescription(SwitchDT.class)
             .addAttribute(Keys.ROTATE)
+            .addAttribute(Keys.MIRROR)
             .addAttribute(Keys.BITS)
             .addAttribute(Keys.LABEL)
             .addAttribute(Keys.POLES);
@@ -90,5 +92,15 @@ public class SwitchDT implements Element, NodeInterface {
      */
     public boolean isClosed() {
         return closed;
+    }
+
+    @Override
+    public int getDataBits() {
+        return poles[0].getBits();
+    }
+
+    @Override
+    public int getInputsCount() {
+        return poles.length;
     }
 }

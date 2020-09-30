@@ -25,12 +25,15 @@ public class Parser {
      * Creates a statement from the jar file using ClassLoader.getSystemResourceAsStream(path).
      *
      * @param path the path of the file to load
+     * @param cl   the classloader used to load the template. If set to null, the SystemClassLoader is used
      * @return the statement
      * @throws IOException     IOException
      * @throws ParserException ParserException
      */
-    public static Statement createFromJar(String path) throws IOException, ParserException {
-        InputStream in = ClassLoader.getSystemResourceAsStream(path);
+    public static Statement createFromJar(String path, ClassLoader cl) throws IOException, ParserException {
+        if (cl == null)
+            cl = ClassLoader.getSystemClassLoader();
+        InputStream in = cl.getResourceAsStream(path);
         if (in == null)
             throw new FileNotFoundException("file not found: " + path);
         try (Reader r = new InputStreamReader(in, StandardCharsets.UTF_8)) {
@@ -48,15 +51,15 @@ public class Parser {
      */
     public static Statement createFromJarStatic(String path) {
         try {
-            return createFromJar(path);
+            return createFromJar(path, null);
         } catch (IOException | ParserException e) {
             throw new RuntimeException("could not parse: " + path, e);
         }
     }
 
 
+    private ArrayList<Reference> refRead;
     private final Tokenizer tok;
-    private Context staticContext;
 
     /**
      * Create a new instance
@@ -75,7 +78,20 @@ public class Parser {
      */
     public Parser(Reader reader, String srcFile) {
         tok = new Tokenizer(reader, srcFile);
-        staticContext = new Context();
+    }
+
+    /**
+     * If called all read references are collected.
+     */
+    public void enableRefReadCollection() {
+        refRead = new ArrayList<>();
+    }
+
+    /**
+     * @return returns the references read
+     */
+    public ArrayList<Reference> getRefsRead() {
+        return refRead;
     }
 
     private Statement lino(Statement statement) {
@@ -100,34 +116,33 @@ public class Parser {
      * @throws ParserException ParserException
      */
     public Statement parse() throws IOException, ParserException {
-        Statements s = new Statements();
-        String text = tok.readText();
-        if (nextIs(SUB))
-            text = Value.trimRight(text);
-
-        if (text.length() > 0) {
-            String t = text;
-            s.add(c -> c.print(t));
-        }
-        while (!nextIs(EOF)) {
-            if (nextIs(STATIC)) {
-                Statement stat = parseStatement();
-                try {
-                    stat.execute(staticContext);
-                } catch (HGSEvalException e) {
-                    throw newParserException("error evaluating static code: " + e.getMessage());
-                }
-            } else
-                s.add(parseStatement());
-        }
-        return s.optimize();
+        return parse(true);
     }
 
     /**
-     * @return the static context of this template
+     * Parses the given template source
+     *
+     * @param startsWithText true if code starts with text.
+     * @return the Statement to execute
+     * @throws IOException     IOException
+     * @throws ParserException ParserException
      */
-    public Context getStaticContext() {
-        return staticContext;
+    public Statement parse(boolean startsWithText) throws IOException, ParserException {
+        Statements s = new Statements();
+        if (startsWithText) {
+            String text = tok.readText();
+            if (nextIs(SUB))
+                text = Value.trimRight(text);
+
+            if (text.length() > 0) {
+                String t = text;
+                s.add(c -> c.print(t));
+            }
+        }
+        while (!nextIs(EOF))
+            s.add(parseStatement());
+
+        return s.optimize();
     }
 
     private Statement parseStatement() throws IOException, ParserException {
@@ -163,7 +178,7 @@ public class Parser {
                             return lino(c -> ref.declareVar(c, initVal.value(c)));
                     case EQUAL:
                         if (export)
-                            throw newParserException("export not alowed here!");
+                            throw newParserException("export is only allowed at variable declaration!");
                         final Expression val = parseExpression();
                         if (isRealStatement) expect(SEMICOLON);
                         return lino(c -> {
@@ -175,18 +190,18 @@ public class Parser {
                     case ADD:
                         expect(ADD);
                         if (export)
-                            throw newParserException("export not alowed here!");
+                            throw newParserException("export is only allowed at variable declaration!");
                         if (isRealStatement) expect(SEMICOLON);
                         return lino(c -> ref.set(c, Value.toLong(ref.get(c)) + 1));
                     case SUB:
                         expect(SUB);
                         if (export)
-                            throw newParserException("export not alowed here!");
+                            throw newParserException("export is only allowed at variable declaration!");
                         if (isRealStatement) expect(SEMICOLON);
                         return lino(c -> ref.set(c, Value.toLong(ref.get(c)) - 1));
                     case SEMICOLON:
                         if (export)
-                            throw newParserException("export not alowed here!");
+                            throw newParserException("export is only allowed at variable declaration!");
                         return lino(ref::get);
                     default:
                         throw newUnexpectedToken(refToken);
@@ -503,6 +518,8 @@ public class Parser {
             case IDENT:
                 String name = tok.getIdent();
                 Reference r = parseReference(name);
+                if (refRead != null)
+                    refRead.add(r);
                 return r::get;
             case NUMBER:
                 long num = convToLong(tok.getIdent());

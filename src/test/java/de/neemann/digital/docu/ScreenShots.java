@@ -7,6 +7,7 @@ package de.neemann.digital.docu;
 
 import de.neemann.digital.analyse.TruthTable;
 import de.neemann.digital.analyse.TruthTableTableModel;
+import de.neemann.digital.analyse.expression.format.FormatToExpression;
 import de.neemann.digital.core.element.Keys;
 import de.neemann.digital.fsm.gui.FSMFrame;
 import de.neemann.digital.gui.Main;
@@ -49,6 +50,7 @@ public class ScreenShots {
     private static Main mainStatic;
 
     public static void main(String[] args) {
+        FormatToExpression.setDefaultFormat(FormatToExpression.FORMATTER_UNICODE_NOAND);
         Settings.getInstance().getAttributes().set(Keys.SETTINGS_DEFAULT_TREESELECT, false);
         Settings.getInstance().getAttributes().set(Keys.SETTINGS_GRID, true);
 //        mainScreenShot();
@@ -58,10 +60,12 @@ public class ScreenShots {
     }
 
     private static void all() {
+        Settings.getInstance().getAttributes()
+                .set(Keys.SETTINGS_GRID, true);
+
         // English
         Lang.setActualRuntimeLanguage(new Language("en"));
         Settings.getInstance().getAttributes()
-                .set(Keys.SETTINGS_GRID, true)
                 .set(Keys.SETTINGS_IEEE_SHAPES, true);
         mainScreenShot();
         firstSteps();
@@ -70,7 +74,6 @@ public class ScreenShots {
         // German
         Lang.setActualRuntimeLanguage(new Language("de"));
         Settings.getInstance().getAttributes()
-                .set(Keys.SETTINGS_GRID, true)
                 .set(Keys.SETTINGS_IEEE_SHAPES, false);
         firstSteps();
         hierarchicalDesign();
@@ -78,7 +81,6 @@ public class ScreenShots {
         // Portuguese
         Lang.setActualRuntimeLanguage(new Language("pt"));
         Settings.getInstance().getAttributes()
-                .set(Keys.SETTINGS_GRID, true)
                 .set(Keys.SETTINGS_IEEE_SHAPES, true);
         firstSteps();
         hierarchicalDesign();
@@ -86,7 +88,13 @@ public class ScreenShots {
         // Spanish
         Lang.setActualRuntimeLanguage(new Language("es"));
         Settings.getInstance().getAttributes()
-                .set(Keys.SETTINGS_GRID, true)
+                .set(Keys.SETTINGS_IEEE_SHAPES, true);
+        firstSteps();
+        hierarchicalDesign();
+
+        // Chinese
+        Lang.setActualRuntimeLanguage(new Language("zh"));
+        Settings.getInstance().getAttributes()
                 .set(Keys.SETTINGS_IEEE_SHAPES, true);
         firstSteps();
         hierarchicalDesign();
@@ -94,22 +102,23 @@ public class ScreenShots {
 
     private static void mainScreenShot() {
         Lang.setActualRuntimeLanguage(new Language("en"));
-        Settings.getInstance().getAttributes().set(Keys.SETTINGS_IEEE_SHAPES, true);
+
+        Settings.getInstance().getAttributes()
+                .set(Keys.SETTINGS_IEEE_SHAPES, true)
+                .set(Keys.SETTINGS_GRID, true)
+                .set(Keys.SETTINGS_SHOW_WIRE_BITS, true);
         new GuiTester("../../main/dig/processor/Processor.dig", "examples/processor/Processor.dig")
                 .press(' ')
-                .delay(2000)
-                .add(new GuiTester.WindowCheck<>(GraphicDialog.class, (gt, gd) -> {
-                    graphic = gd;
-                    final Main main = (Main) gd.getParent();
-                    main.getCircuitComponent().requestFocus();
+                .delay(4000)
+                .add(new GuiTester.WindowCheck<>(Main.class, (gt, main) -> {
+                    main.ensureModelIsStopped();
+                    main.getWindowPosManager().closeAll();
                 }))
-                .delay(500)
-                .press(' ')
-                .add((gt) -> graphic.dispose())
                 .delay(500)
                 .press("F1")
                 .add(new MainScreenShot("distribution/screenshot.png"))
-                .execute();
+                .execute(); /**/
+
         new GuiTester()
                 .press("F10")
                 .press("RIGHT", 4)
@@ -152,8 +161,8 @@ public class ScreenShots {
                 .add(new GuiTester.CloseTopMost())
                 .add(new GuiTester.CloseTopMost())
                 .add(new GuiTester.CloseTopMost())
-                .execute();
-
+                .execute();/**/
+        
         File trafficLight = new File(Resources.getRoot(), "../../main/fsm/trafficLightBlink.fsm");
         new GuiTester()
                 .press("F10")
@@ -174,20 +183,23 @@ public class ScreenShots {
                     ReorderOutputs ro = new ReorderOutputs(tt);
                     ro.getItems().swap(3, 4);
                     ro.getItems().swap(4, 5);
-                    tableDialog.setModel(new TruthTableTableModel(ro.reorder()));
+                    ro.reorder();
+                    tableDialog.tableChanged();
                 }))
                 .delay(500)
                 .add(closeAllSolutionsDialog())
                 .delay(500)
                 .press("F10")
-                .press("RIGHT", 4)
+                .press("RIGHT", 3)
                 .press("DOWN", 2)
                 .press("ENTER")
                 .delay(500)
                 .add(new GuiTester.WindowCheck<>(Main.class,
                         (gt, main) -> {
-                            main.getCircuitComponent().translateCircuit(-40, 0);
+                            main.getCircuitComponent().translateCircuit(-40, -5);
                             mainStatic = main;
+                            main.setSize(1024, 768);
+                            main.setLocationRelativeTo(null);
                         }))
                 .delay(500)
                 .press("F10")
@@ -197,10 +209,10 @@ public class ScreenShots {
                 .delay(500)
                 .add(new GuiTester.WindowCheck<>(FSMFrame.class, (gt, fsmFrame) -> {
                     fsmFrame.loadFile(trafficLight);
-                    fsmFrame.getContentPane().setPreferredSize(new Dimension(550, 400));
+                    fsmFrame.getContentPane().setPreferredSize(new Dimension(500, 400));
                     fsmFrame.pack();
-                    final Point location = fsmFrame.getLocation();
-                    fsmFrame.setLocation(location.x + 250, location.y + 100);
+                    final Point location = mainStatic.getLocation();
+                    fsmFrame.setLocation(location.x + 500, location.y + 120);
                     fsmFrame.setAlwaysOnTop(true);
                     fsmFrame.setTitle(trafficLight.getName());
                     mainStatic.requestFocus();
@@ -210,7 +222,7 @@ public class ScreenShots {
                 .add(new GuiTester.CloseTopMost())
                 .add(new GuiTester.CloseTopMost())
                 .add(new GuiTester.CloseTopMost())
-                .execute();
+                .execute();/**/
     }
 
     private static GuiTester.WindowCheck<Window> closeAllSolutionsDialog() {
@@ -307,7 +319,7 @@ public class ScreenShots {
                 .add(new ScreenShot<>(TableDialog.class).useParent())
                 // k-map
                 .press("F10")
-                .press("RIGHT", 5)
+                .press("RIGHT", 4)
                 .press("DOWN", 1)
                 .add(new ScreenShot<>(TableDialog.class).useParent())
                 .press("ENTER")

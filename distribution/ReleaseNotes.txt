@@ -1,6 +1,63 @@
 Release Notes
 
-head, planned as v0.23
+HEAD, planned as v0.26
+- Fixed a bug in the Demuxer Verilog template that causes problems
+  when using multiple demuxers in the same circuit.
+- Fixed a bug in the value editor, which occurs, if high-z is the
+  default value of an input.
+- Fixed an issue which avoids to restart a running simulation by just
+  click on the start button again.
+- If IEEE shapes are selected in the settings, also the CircuitBuilder
+  uses wide shapes in the created circuits.
+
+v0.25, released on 10. Aug. 2020
+- Color schemes have been added to support color-blind users.
+- Unipolar and bipolar stepper motors were added.
+- Moved the "lib" folder from the "examples" folder to the root folder.
+  - In case you have added your own library circuits, you have to move
+    them manually as well.
+- Reordering of the cells in the K-Map.
+- Counters are able to act as program counters via the remote interface.
+- The circuits created have a more visible separation of the inputs.
+- The hex seven seg display is switched off in case of a high-z input.
+- A Stop component was added.
+- Improved test case parser. Now the test case is able to react on the
+  circuit's state.
+- 7482, 74193 and 744017 were added
+- Breaking changes:
+  - The layout shape uses a slightly different algorithm to determine
+    the pin positions. You may need to adjust usages of embedded circuits
+    that use the layout shape.
+  - The CommandLineTester has moved! Tests are now executed like this:
+    java -cp Digital.jar CLI test [file to test]
+       [-tests [optional file with test cases]]
+  - Text formatting was reworked. Disable formatting with a '\' in the
+    beginning does not longer work. Use "\_" to escape a underscore.
+
+v0.24, released on 1. Feb. 2020
+- Improved SVG export
+- Allows to disable inputs and outputs in the measurement graph.
+- Model analyzer is able to use switches as inputs.
+- Editor is able to store views ([CRTL]+[[n]] to create, [[n]] ro recall
+  a view. So [CTRL]+[1] stores a view in slot one and [1] recalls it.
+- The octal number format was added.
+- A mirroring option was added to some components.
+- Custom Java implemented components can now also implement HDL code to
+  represent the component in an HDL export.
+- Added a undo function to the table editor.
+- Adds a command line interface for testing circuits.
+- Allows to disable "snap to grid" in text and rectangle components.
+- A push button combined with a LED was added.
+- A VGA monitor was added.
+- Improved naming of new Tunnels. Unnamed Tunnels are ignored silently.
+- Overlapping pins are now connected.
+- Added support for INOUT ports in HDL generation.
+- Fixed an issue with Chinese text rendering.
+
+v0.23, released on 23. Aug. 2019
+- Added generic circuits. Now it is possible to parameterize a sub circuit.
+  Allows e.g. the creation of a barrel-shifter with selectable bit width.
+- Circuit analyser is now able to analyse the built-in counters.
 - Simplified the integration of FPGA boards.
   Board integration is now possible without creating Java code or
   even recompiling. See the BASYS3.config in examples/hdl as an example.
@@ -9,6 +66,7 @@ head, planned as v0.23
 - Hex reader/writer supports RLE encoding like Logisim does.
 - Added Spanish translation. Special thanks to Ángel Millán who provided
   the translation.
+- Added a simple interactive beginners tutorial.
 - Added a statistics dialog which shows the number of used components.
 - Added scrollbars.
 - Multiple break components are allowed.
@@ -19,6 +77,7 @@ head, planned as v0.23
   74xx circuit example.
 - Fixed an issue in the "RAM, Chip select" component which was not fully
   asynchronous.
+- Fixed swapped IC numbers 7447 and 7448.
 
 v0.22, released on 01. Apr 2019
 - Improved the RAM/ROM data loader. Now binary files and Intel HEX files are

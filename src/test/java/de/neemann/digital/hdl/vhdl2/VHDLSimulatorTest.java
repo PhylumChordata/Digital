@@ -6,15 +6,11 @@
 package de.neemann.digital.hdl.vhdl2;
 
 import de.neemann.digital.core.ExceptionWithOrigin;
-import de.neemann.digital.core.NodeException;
 import de.neemann.digital.core.element.Keys;
 import de.neemann.digital.core.extern.ProcessStarter;
-import de.neemann.digital.draw.elements.PinException;
-import de.neemann.digital.draw.library.ElementNotFoundException;
 import de.neemann.digital.gui.Settings;
 import de.neemann.digital.hdl.model2.HDLException;
 import de.neemann.digital.hdl.printer.CodePrinter;
-import de.neemann.digital.hdl.printer.CodePrinterStr;
 import de.neemann.digital.integration.FileScanner;
 import de.neemann.digital.integration.Resources;
 import de.neemann.digital.integration.TestExamples;
@@ -35,7 +31,7 @@ public class VHDLSimulatorTest extends TestCase {
 
     /*
     public void testDebug() throws Exception {
-        File file = new File(Resources.getRoot(), "dig/test/vhdl/lut2.dig");
+        File file = new File(Resources.getRoot(), "/dig/test/pinControl/nesting.dig");
 
         ToBreakRunner br = new ToBreakRunner(file);
         System.out.println(new VHDLGenerator(br.getLibrary(), new CodePrinterStr(true)).export(br.getCircuit()));
@@ -47,8 +43,8 @@ public class VHDLSimulatorTest extends TestCase {
         File examples = new File(Resources.getRoot(), "/dig/test/vhdl");
         try {
             int tested = new FileScanner(this::checkVHDLExport).noOutput().scan(examples);
-            assertEquals(41, tested);
-            assertEquals(tested+2, testBenches);
+            assertEquals(58, tested);
+            assertEquals(52, testBenches);
         } catch (FileScanner.SkipAllException e) {
             // if ghdl is not installed its also ok
         }
@@ -58,7 +54,18 @@ public class VHDLSimulatorTest extends TestCase {
         File examples = new File(Resources.getRoot(), "/dig/hdl");
         try {
             int tested = new FileScanner(this::checkVHDLExport).noOutput().scan(examples);
-            assertEquals(47, tested);
+            assertEquals(48, tested);
+        } catch (FileScanner.SkipAllException e) {
+            // if ghdl is not installed its also ok
+        }
+    }
+
+    public void testInSimulatorInOut() throws Exception {
+        File examples = new File(Resources.getRoot(), "/dig/test/pinControl");
+        try {
+            int tested = new FileScanner(this::checkVHDLExport).noOutput().scan(examples);
+            assertEquals(2, tested);
+            assertEquals(2, testBenches);
         } catch (FileScanner.SkipAllException e) {
             // if ghdl is not installed its also ok
         }
@@ -120,16 +127,16 @@ public class VHDLSimulatorTest extends TestCase {
     }
 
 
-    private void checkVHDLExport(File file) throws PinException, NodeException, ElementNotFoundException, IOException, FileScanner.SkipAllException, HDLException {
+    private void checkVHDLExport(File file) throws Exception {
         ToBreakRunner br = new ToBreakRunner(file);
         File dir = Files.createTempDirectory("digital_vhdl_" + getTime() + "_").toFile();
         try {
             File vhdlFile = new File(dir, file.getName()
                     .replace('.', '_')
-                    .replace('-', '_')+ ".vhdl");
+                    .replace('-', '_') + ".vhdl");
             CodePrinter out = new CodePrinter(vhdlFile);
             try (VHDLGenerator vhdl = new VHDLGenerator(br.getLibrary(), out)) {
-                vhdl.disableClockIntegration().export(br.getCircuit());
+                vhdl.export(br.getCircuit());
                 ArrayList<File> testFiles = vhdl.getTestBenches();
                 out.close();
                 runGHDL(vhdlFile, testFiles);
@@ -141,14 +148,14 @@ public class VHDLSimulatorTest extends TestCase {
     }
 
     private void runGHDL(File vhdlFile, ArrayList<File> testFileWritten) throws IOException, FileScanner.SkipAllException, HDLException {
-        checkWarn(vhdlFile, startProcess(vhdlFile.getParentFile(), GHDL, "-a", "--ieee=synopsys", vhdlFile.getName()));
-        checkWarn(vhdlFile, startProcess(vhdlFile.getParentFile(), GHDL, "-e", "--ieee=synopsys", "main"));
+        checkWarn(vhdlFile, startProcess(vhdlFile.getParentFile(), GHDL, "-a", "--std=02", "--ieee=synopsys", vhdlFile.getName()));
+        checkWarn(vhdlFile, startProcess(vhdlFile.getParentFile(), GHDL, "-e", "--std=02", "--ieee=synopsys", "main"));
         for (File testbench : testFileWritten) {
             String name = testbench.getName();
-            checkWarn(testbench, startProcess(vhdlFile.getParentFile(), GHDL, "-a", "--ieee=synopsys", name));
+            checkWarn(testbench, startProcess(vhdlFile.getParentFile(), GHDL, "-a", "--std=02", "--ieee=synopsys", name));
             String module = name.substring(0, name.length() - 5);
-            checkWarn(testbench, startProcess(vhdlFile.getParentFile(), GHDL, "-e", "--ieee=synopsys", module));
-            String result = startProcess(vhdlFile.getParentFile(), GHDL, "-r", "--ieee=synopsys", module, "--vcd=" + module + ".vcd");
+            checkWarn(testbench, startProcess(vhdlFile.getParentFile(), GHDL, "-e", "--std=02", "--ieee=synopsys", module));
+            String result = startProcess(vhdlFile.getParentFile(), GHDL, "-r", "--std=02", "--ieee=synopsys", module, "--vcd=" + module + ".vcd");
             if (result.contains("(assertion error)"))
                 throw new HDLException("test bench " + name + " failed:\n" + result);
             checkWarn(testbench, result);

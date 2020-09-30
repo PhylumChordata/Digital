@@ -5,7 +5,6 @@
  */
 package de.neemann.digital.draw.shapes;
 
-import de.neemann.digital.core.Observer;
 import de.neemann.digital.core.element.ElementAttributes;
 import de.neemann.digital.core.element.Keys;
 import de.neemann.digital.core.element.PinDescriptions;
@@ -65,10 +64,8 @@ public class RelayShape implements Shape {
     }
 
     @Override
-    public InteractorInterface applyStateMonitor(IOState ioState, Observer guiObserver) {
+    public InteractorInterface applyStateMonitor(IOState ioState) {
         relay = (Relay) ioState.getElement();
-        ioState.getInput(0).addObserverToValue(guiObserver);
-        ioState.getInput(1).addObserverToValue(guiObserver);
         return null;
     }
 
@@ -114,7 +111,7 @@ public class RelayShape implements Shape {
         graphic.drawLine(new Vector(SIZE + SIZE2, -SIZE * 2), new Vector(SIZE * 2, -SIZE * 2), Style.NORMAL);
 
         if (label != null && label.length() > 0)
-            Graphic.drawText(graphic, new Vector(SIZE, -SIZE * 3 - 4), label, Orientation.CENTERBOTTOM, Style.SHAPE_PIN);
+            graphic.drawText(new Vector(SIZE, -SIZE * 3 - 4), label, Orientation.CENTERBOTTOM, Style.SHAPE_PIN);
     }
 
 }

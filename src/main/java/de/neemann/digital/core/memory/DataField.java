@@ -5,6 +5,7 @@
  */
 package de.neemann.digital.core.memory;
 
+import de.neemann.digital.core.Bits;
 import de.neemann.digital.hdl.hgs.HGSArray;
 
 import java.io.*;
@@ -17,14 +18,16 @@ import java.util.Arrays;
  */
 public class DataField implements HGSArray {
 
-    /***
-     * Simple default data field
-     */
-    public static final DataField DEFAULT = new DataField(0);
-
     private long[] data;
 
     private final transient ArrayList<DataListener> listeners = new ArrayList<>();
+
+    /**
+     * Creates a new DataField of size 0
+     */
+    public DataField() {
+        this(0);
+    }
 
     /**
      * Creates a new DataField
@@ -133,7 +136,7 @@ public class DataField implements HGSArray {
      * @param value the value
      * @return this for chained calls
      */
-    public DataField setData(int addr, long value) {
+    public boolean setData(int addr, long value) {
         if (addr >= data.length) {
             int newLen = addr * 2;
             if (newLen < 32) newLen = 32;
@@ -143,8 +146,9 @@ public class DataField implements HGSArray {
         if (data[addr] != value) {
             data[addr] = value;
             fireChanged(addr);
-        }
-        return this;
+            return true;
+        } else
+            return false;
     }
 
     /**
@@ -161,17 +165,54 @@ public class DataField implements HGSArray {
     }
 
     /**
-     * Trims the data field to it's minimal size
+     * Trims the data field to it's minimal size.
      * All trailing zeros are removed.
      *
      * @return the new length of the data array
      */
     public int trim() {
-        int pos = data.length;
-        while (pos > 0 && data[pos - 1] == 0) pos--;
-        if (pos < data.length)
-            data = Arrays.copyOf(data, pos);
+        return trim(data.length);
+    }
+
+    /**
+     * Trims the data field to it's minimal size.
+     * The size is limited to the given value.
+     * Additional data is removed, even if it is not zero.
+     *
+     * @param size the max size
+     * @return the new length of the data array
+     */
+    private int trim(int size) {
+        if (size > data.length)
+            size = data.length;
+        while (size > 0 && data[size - 1] == 0) size--;
+        if (size < data.length)
+            data = Arrays.copyOf(data, size);
         return data.length;
+    }
+
+    /**
+     * Trims the data field to the given bit numbers.
+     *
+     * @param addrBits the number of addr bits, trims the size of the array
+     * @param dataBits the number of data bits, trims the values
+     * @return this for chained calls
+     */
+    public DataField trimValues(int addrBits, int dataBits) {
+        trim(1 << addrBits);
+        long mask = Bits.mask(dataBits);
+        for (int i = 0; i < data.length; i++)
+            data[i] = data[i] & mask;
+
+        return this;
+    }
+
+
+    /**
+     * @return true if the data field is empty
+     */
+    public boolean isEmpty() {
+        return trim() == 0;
     }
 
     /**
@@ -246,5 +287,18 @@ public class DataField implements HGSArray {
      */
     public long[] getData() {
         return data;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        DataField dataField = (DataField) o;
+        return Arrays.equals(data, dataField.data);
+    }
+
+    @Override
+    public int hashCode() {
+        return Arrays.hashCode(data);
     }
 }

@@ -11,12 +11,12 @@ import de.neemann.digital.analyse.TruthTable;
 import de.neemann.digital.analyse.TruthTableTableModel;
 import de.neemann.digital.analyse.expression.Expression;
 import de.neemann.digital.analyse.expression.ExpressionException;
+import de.neemann.digital.analyse.expression.NamedExpression;
 import de.neemann.digital.analyse.expression.Variable;
-import de.neemann.digital.analyse.expression.format.FormatToExpression;
-import de.neemann.digital.analyse.expression.format.FormatToTableLatex;
 import de.neemann.digital.analyse.expression.format.FormatterException;
 import de.neemann.digital.analyse.expression.modify.*;
-import de.neemann.digital.analyse.format.TruthTableFormatterLaTeX;
+import de.neemann.digital.analyse.format.TruthTableFormatter;
+import de.neemann.digital.analyse.format.TruthTableFormatterTestCase;
 import de.neemann.digital.analyse.quinemc.BoolTableByteArray;
 import de.neemann.digital.builder.ATF150x.ATFDevice;
 import de.neemann.digital.builder.ExpressionToFileExporter;
@@ -29,6 +29,9 @@ import de.neemann.digital.core.element.ElementAttributes;
 import de.neemann.digital.core.element.Key;
 import de.neemann.digital.core.element.Keys;
 import de.neemann.digital.draw.elements.Circuit;
+import de.neemann.digital.draw.graphics.text.ParseException;
+import de.neemann.digital.draw.graphics.text.Parser;
+import de.neemann.digital.draw.graphics.text.formatter.PlainTextFormatter;
 import de.neemann.digital.draw.library.ElementLibrary;
 import de.neemann.digital.draw.shapes.ShapeFactory;
 import de.neemann.digital.gui.Main;
@@ -40,6 +43,8 @@ import de.neemann.digital.gui.components.table.hardware.GenerateCUPL;
 import de.neemann.digital.gui.components.table.hardware.GenerateFile;
 import de.neemann.digital.gui.components.table.hardware.HardwareDescriptionGenerator;
 import de.neemann.digital.lang.Lang;
+import de.neemann.digital.undo.ModifyException;
+import de.neemann.digital.undo.UndoManager;
 import de.neemann.gui.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,13 +67,16 @@ import java.util.List;
 import java.util.StringTokenizer;
 import java.util.prefs.Preferences;
 
+import static de.neemann.digital.analyse.ModelAnalyser.addOne;
+
 /**
- *
+ * The dialog used to show the truth table.
  */
 public class TableDialog extends JDialog {
     private static final Logger LOGGER = LoggerFactory.getLogger(TableDialog.class);
     private static final Preferences PREFS = Preferences.userRoot().node("dig").node("generator");
     private static final Color MYGRAY = new Color(230, 230, 230);
+    private static final Color ODDWHITE = new Color(255, 255, 220);
     private static final List<Key> LIST = new ArrayList<>();
 
     static {
@@ -91,7 +99,7 @@ public class TableDialog extends JDialog {
         }
     }
 
-    private final JTextPane statusBar;
+    private final ExpressionComponent statusBar;
     private final JTable table;
     private final Font font;
     private final ElementLibrary library;
@@ -99,15 +107,16 @@ public class TableDialog extends JDialog {
     private final ToolTipAction karnaughMenuAction;
     private final HashMap<String, HardwareDescriptionGenerator> availGenerators = new HashMap<>();
     private final JMenu hardwareMenu;
+    private final TruthTableTableModel model;
+    private final AllSolutionsDialog allSolutionsDialog;
+    private final KarnaughMapDialog kvMap;
+    private final Mouse mouse = Mouse.getMouse();
+    private final UndoManager<TruthTable> undoManager;
     private JCheckBoxMenuItem createJK;
     private File filename;
-    private TruthTableTableModel model;
     private int columnIndex;
-    private AllSolutionsDialog allSolutionsDialog;
     private ExpressionListenerStore lastGeneratedExpressions;
-    private KarnaughMapDialog kvMap;
     private JMenuItem lastUsedGenratorMenuItem;
-    private Mouse mouse = Mouse.getMouse();
 
     /**
      * Creates a new instance
@@ -119,25 +128,25 @@ public class TableDialog extends JDialog {
      */
     public TableDialog(Window parent, TruthTable truthTable, ElementLibrary library, File filename) {
         super(parent, Lang.get("win_table"));
+        undoManager = new UndoManager<>(truthTable);
         this.library = library;
         this.shapeFactory = library.getShapeFactory();
         this.filename = filename;
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-        kvMap = new KarnaughMapDialog(this, (boolTable, row) -> model.incValue(boolTable, row));
 
-        statusBar = new JTextPane();
-        statusBar.putClientProperty(JTextPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE); // without this setFont not work
-        statusBar.setContentType("text/html");
-        statusBar.setEditable(false);
-        statusBar.setBackground(null);
-        statusBar.setBorder(null);
-        statusBar.setText("-");
+        model = new TruthTableTableModel(undoManager);
+        model.addTableModelListener(new CalculationTableModelListener());
+
+        kvMap = new KarnaughMapDialog(this, model::incValue);
+
+        statusBar = new ExpressionComponent();
         font = Screen.getInstance().getFont(1.66f);
         statusBar.setFont(font);
         table = new JTable(model);
         JComboBox<String> comboBox = new JComboBox<>(TruthTableTableModel.STATENAMES);
         table.setDefaultEditor(Integer.class, new DefaultCellEditor(comboBox));
         table.setDefaultRenderer(Integer.class, new CenterDefaultTableCellRenderer());
+        table.getTableHeader().setDefaultRenderer(new StringDefaultTableCellRenderer());
         table.setRowHeight(font.getSize() * 6 / 5);
 
         table.getInputMap().put(KeyStroke.getKeyStroke("0"), "0_ACTION");
@@ -184,63 +193,90 @@ public class TableDialog extends JDialog {
         }
         bar.add(sizeMenu);
 
-        JMenu columnsMenu = new JMenu(Lang.get("menu_table_columns"));
-        bar.add(columnsMenu);
-        columnsMenu.add(new ToolTipAction(Lang.get("menu_table_reorder_inputs")) {
+        JMenu edit = new JMenu(Lang.get("menu_edit"));
+        bar.add(edit);
+
+        addUndoRedo(edit);
+
+        edit.addSeparator();
+
+        edit.add(new ToolTipAction(Lang.get("menu_table_reorder_inputs")) {
             @Override
             public void actionPerformed(ActionEvent e) {
-                ReorderInputs ri = new ReorderInputs(model.getTable());
-                if (new ElementOrderer<>(TableDialog.this, Lang.get("menu_table_reorder_inputs"), ri.getItems())
-                        .addDeleteButton()
+                ArrayList<String> varNames = undoManager.getActual().getVarNames();
+                if (new ElementOrderer<>(TableDialog.this, Lang.get("menu_table_reorder_inputs"), new ElementOrderer.ListOrder<>(varNames))
+                        .addDeleteButton(2)
                         .addOkButton()
                         .showDialog()) {
+
                     try {
-                        setModel(new TruthTableTableModel(ri.reorder()));
-                    } catch (ExpressionException e1) {
+                        undoManager.apply(tt -> {
+                            try {
+                                new ReorderInputs(tt, varNames).reorder();
+                            } catch (ExpressionException ex) {
+                                throw new ModifyException("failed to reorder", ex);
+                            }
+                        });
+                        tableChanged();
+                    } catch (ModifyException e1) {
                         new ErrorMessage().addCause(e1).show(TableDialog.this);
                     }
                 }
             }
         }.createJMenuItem());
 
-        columnsMenu.add(new ToolTipAction(Lang.get("menu_table_columnsAddVariable")) {
+        edit.add(new ToolTipAction(Lang.get("menu_table_columnsAddVariable")) {
             @Override
             public void actionPerformed(ActionEvent actionEvent) {
-                TruthTable t = model.getTable();
-                t.addVariable();
-                setModel(new TruthTableTableModel(t));
+                try {
+                    undoManager.apply(TruthTable::addVariable);
+                    tableChanged();
+                } catch (ModifyException e) {
+                    new ErrorMessage().addCause(e).show(TableDialog.this);
+                }
             }
         }.setToolTip(Lang.get("menu_table_columnsAddVariable_tt")).createJMenuItem());
 
-        columnsMenu.add(new ToolTipAction(Lang.get("menu_table_reorder_outputs")) {
+        edit.add(new ToolTipAction(Lang.get("menu_table_reorder_outputs")) {
             @Override
             public void actionPerformed(ActionEvent e) {
-                ReorderOutputs ro = new ReorderOutputs(model.getTable());
-                if (new ElementOrderer<>(TableDialog.this, Lang.get("menu_table_reorder_outputs"), ro.getItems())
-                        .addDeleteButton()
+                ArrayList<String> resultNames = undoManager.getActual().getResultNames();
+                if (new ElementOrderer<>(TableDialog.this, Lang.get("menu_table_reorder_outputs"), new ElementOrderer.ListOrder<>(resultNames))
+                        .addDeleteButton(1)
                         .addOkButton()
                         .showDialog()) {
                     try {
-                        setModel(new TruthTableTableModel(ro.reorder()));
-                    } catch (ExpressionException e1) {
+                        undoManager.apply(tt -> {
+                            try {
+                                new ReorderOutputs(tt, resultNames).reorder();
+                            } catch (ExpressionException ex) {
+                                throw new ModifyException("failed to reorder", ex);
+                            }
+                        });
+                        tableChanged();
+                    } catch (ModifyException e1) {
                         new ErrorMessage().addCause(e1).show(TableDialog.this);
                     }
                 }
             }
         }.createJMenuItem());
 
-        columnsMenu.add(new ToolTipAction(Lang.get("menu_table_columnsAdd")) {
+        edit.add(new ToolTipAction(Lang.get("menu_table_columnsAdd")) {
             @Override
             public void actionPerformed(ActionEvent actionEvent) {
-                TruthTable t = model.getTable();
-                t.addResult();
-                setModel(new TruthTableTableModel(t));
+                try {
+                    undoManager.apply(TruthTable::addResult);
+                    tableChanged();
+                } catch (ModifyException e) {
+                    new ErrorMessage().addCause(e).show(TableDialog.this);
+                }
+
             }
         }.setToolTip(Lang.get("menu_table_columnsAdd_tt")).createJMenuItem());
 
-        bar.add(columnsMenu);
+        edit.addSeparator();
 
-        bar.add(createSetMenu());
+        createSetMenuEntries(edit);
 
         hardwareMenu = createCreateMenu();
         bar.add(hardwareMenu);
@@ -258,12 +294,62 @@ public class TableDialog extends JDialog {
 
         setJMenuBar(bar);
 
-        setModel(new TruthTableTableModel(truthTable));
+        karnaughMenuAction.setEnabled(undoManager.getActual().getVars().size() <= 4);
+        calculateExpressions();
 
         getContentPane().add(new JScrollPane(table));
         getContentPane().add(statusBar, BorderLayout.SOUTH);
         pack();
         setLocationRelativeTo(parent);
+    }
+
+    private void addUndoRedo(JMenu edit) {
+        final ToolTipAction undo = new ToolTipAction(Lang.get("menu_undo")) {
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) {
+                if (undoManager.undoAvailable()) {
+                    try {
+                        undoManager.undo();
+                        tableChanged();
+                    } catch (ModifyException e) {
+                        new ErrorMessage().addCause(e).show(TableDialog.this);
+                    }
+                }
+            }
+        }.setAcceleratorCTRLplus("Z");
+        final ToolTipAction redo = new ToolTipAction(Lang.get("menu_redo")) {
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) {
+                if (undoManager.redoAvailable()) {
+                    try {
+                        undoManager.redo();
+                        tableChanged();
+                    } catch (ModifyException e) {
+                        new ErrorMessage().addCause(e).show(TableDialog.this);
+                    }
+                }
+            }
+        }.setAcceleratorCTRLplus("Y");
+
+        edit.add(undo.createJMenuItem());
+        edit.add(redo.createJMenuItem());
+        undoManager.addListener(() -> {
+            undo.setEnabled(undoManager.undoAvailable());
+            redo.setEnabled(undoManager.redoAvailable());
+            if (undoManager.isModified())
+                setTitle("*" + Lang.get("win_table"));
+            else
+                setTitle(Lang.get("win_table"));
+        }).hasChanged();
+    }
+
+    /**
+     * Called if table was modified.
+     */
+    public void tableChanged() {
+        karnaughMenuAction.setEnabled(undoManager.getActual().getVars().size() <= 4);
+        calculateExpressions();
+        model.fireTableChanged();
     }
 
     private void editColumnName(int columnIndex, Point pos) {
@@ -272,7 +358,7 @@ public class TableDialog extends JDialog {
         attr.set(Keys.LABEL, name);
         ElementAttributes modified = new AttributeDialog(this, pos, LIST, attr).showDialog();
         if (modified != null) {
-            final String newName = modified.get(Keys.LABEL).trim().replace(' ', '_');
+            final String newName = modified.get(Keys.LABEL).trim().replace(' ', '-');
             if (!newName.equals(name))
                 model.setColumnName(columnIndex, newName);
         }
@@ -292,7 +378,8 @@ public class TableDialog extends JDialog {
                     try {
                         File file = fc.getSelectedFile();
                         TruthTable truthTable = TruthTable.readFromFile(file);
-                        setModel(new TruthTableTableModel(truthTable));
+                        undoManager.setInitial(truthTable);
+                        tableChanged();
                         TableDialog.this.filename = file;
                     } catch (IOException e1) {
                         new ErrorMessage().addCause(e1).show(TableDialog.this);
@@ -310,41 +397,58 @@ public class TableDialog extends JDialog {
                 fc.setFileFilter(new FileNameExtensionFilter(Lang.get("msg_truthTable"), "tru"));
                 new SaveAsHelper(TableDialog.this, fc, "tru").checkOverwrite(
                         file -> {
-                            model.getTable().save(file);
+                            undoManager.getActual().save(file);
                             TableDialog.this.filename = file;
                         }
                 );
             }
         });
 
+        fileMenu.add(new TextExportAction(Lang.get("menu_table_exportTablePlainText")) {
+            @Override
+            ExpressionListener createExpressionListener() {
+                return new PlainTextExpressionListener();
+            }
+        });
 
-        fileMenu.add(new ToolTipAction(Lang.get("menu_table_exportTableLaTeX")) {
+        fileMenu.add(new TextExportAction(Lang.get("menu_table_exportTableLaTeX")) {
+            @Override
+            ExpressionListener createExpressionListener() throws ExpressionException {
+                return new LaTeXExpressionListener(undoManager.getActual());
+            }
+        });
+
+        fileMenu.add(new ToolTipAction(Lang.get("menu_table_createFunctionFixture")) {
             @Override
             public void actionPerformed(ActionEvent e) {
                 try {
-                    ExpressionListener expressionListener = new LaTeXExpressionListener(model);
-                    if (createJK.isSelected())
-                        expressionListener = new ExpressionListenerJK(expressionListener);
-                    lastGeneratedExpressions.replayTo(expressionListener);
-                    expressionListener.close();
-                } catch (ExpressionException | FormatterException e1) {
+                    ModelAnalyserInfo modelAnalyzerInfo = undoManager.getActual().getModelAnalyzerInfo();
+                    if (modelAnalyzerInfo != null && modelAnalyzerInfo.isSequential())
+                        JOptionPane.showMessageDialog(
+                                TableDialog.this,
+                                Lang.get("menu_table_createFunctionFixture_isSequential"));
+                    TruthTableFormatter test = new TruthTableFormatterTestCase(modelAnalyzerInfo);
+                    String testCase = test.format(undoManager.getActual());
+                    new ShowStringDialog(TableDialog.this, Lang.get("win_table_exportDialog"),
+                            testCase).setVisible(true);
+                } catch (ExpressionException e1) {
                     new ErrorMessage(Lang.get("msg_errorDuringCalculation")).addCause(e1).show(TableDialog.this);
                 }
             }
-        });
+        }.setToolTip(Lang.get("menu_table_createFunctionFixture_tt")).createJMenuItem());
 
         fileMenu.add(new ToolTipAction(Lang.get("menu_table_exportHex")) {
             @Override
             public void actionPerformed(ActionEvent e) {
                 int res = JOptionPane.OK_OPTION;
-                if (model.getTable().getVars().size() > 20)
+                if (undoManager.getActual().getVars().size() > 20)
                     res = JOptionPane.showConfirmDialog(TableDialog.this, Lang.get("msg_tableHasManyRowsConfirm"));
                 if (res == JOptionPane.OK_OPTION) {
                     JFileChooser fc = new MyFileChooser();
                     if (TableDialog.this.filename != null)
                         fc.setSelectedFile(SaveAsHelper.checkSuffix(TableDialog.this.filename, "hex"));
                     new SaveAsHelper(TableDialog.this, fc, "hex")
-                            .checkOverwrite(file -> model.getTable().saveHex(file));
+                            .checkOverwrite(file -> undoManager.getActual().saveHex(file));
                 }
             }
         }.setToolTip(Lang.get("menu_table_exportHex_tt")).createJMenuItem());
@@ -354,52 +458,58 @@ public class TableDialog extends JDialog {
         createJK.addActionListener(e -> calculateExpressions());
         fileMenu.add(createJK);
 
+        fileMenu.add(allSolutionsDialog.getReopenAction());
+
         return fileMenu;
     }
 
-    private JMenu createSetMenu() {
-        JMenu setMenu = new JMenu(Lang.get("menu_table_set"));
-        setMenu.add(new ToolTipAction(Lang.get("menu_table_setXTo0")) {
+    private void createSetMenuEntries(JMenu edit) {
+        edit.add(new ToolTipAction(Lang.get("menu_table_setXTo0")) {
             @Override
             public void actionPerformed(ActionEvent e) {
-                TruthTable t = model.getTable();
-                t.setXto(false);
-                setModel(new TruthTableTableModel(t));
+                modifyTable(v -> v > 1 ? 0 : v);
             }
         }.setToolTip(Lang.get("menu_table_setXTo0_tt")).createJMenuItem());
-        setMenu.add(new ToolTipAction(Lang.get("menu_table_setXTo1")) {
+        edit.add(new ToolTipAction(Lang.get("menu_table_setXTo1")) {
             @Override
             public void actionPerformed(ActionEvent e) {
-                TruthTable t = model.getTable();
-                t.setXto(true);
-                setModel(new TruthTableTableModel(t));
+                modifyTable(v -> v > 1 ? 1 : v);
             }
         }.setToolTip(Lang.get("menu_table_setXTo1_tt")).createJMenuItem());
-        setMenu.add(new ToolTipAction(Lang.get("menu_table_setAllToX")) {
+        edit.add(new ToolTipAction(Lang.get("menu_table_setAllToX")) {
             @Override
             public void actionPerformed(ActionEvent e) {
-                setAllValuesTo(2);
+                modifyTable(v -> (byte) 2);
             }
         }.setToolTip(Lang.get("menu_table_setAllToX_tt")).createJMenuItem());
-        setMenu.add(new ToolTipAction(Lang.get("menu_table_setAllTo0")) {
+        edit.add(new ToolTipAction(Lang.get("menu_table_setAllTo0")) {
             @Override
             public void actionPerformed(ActionEvent e) {
-                setAllValuesTo(0);
+                modifyTable(v -> (byte) 0);
             }
         }.setToolTip(Lang.get("menu_table_setAllTo0_tt")).createJMenuItem());
-        setMenu.add(new ToolTipAction(Lang.get("menu_table_setAllTo1")) {
+        edit.add(new ToolTipAction(Lang.get("menu_table_setAllTo1")) {
             @Override
             public void actionPerformed(ActionEvent e) {
-                setAllValuesTo(1);
+                modifyTable(v -> (byte) 1);
             }
         }.setToolTip(Lang.get("menu_table_setAllTo1_tt")).createJMenuItem());
-        return setMenu;
+        edit.add(new ToolTipAction(Lang.get("menu_table_invert")) {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                modifyTable(v -> v > 1 ? v : (byte) (1 - v));
+            }
+        }.setToolTip(Lang.get("menu_table_invert_tt")).createJMenuItem());
     }
 
-    private void setAllValuesTo(int value) {
-        TruthTable t = model.getTable();
-        t.setAllTo(value);
-        setModel(new TruthTableTableModel(t));
+    private void modifyTable(BoolTableByteArray.TableModifier m) {
+        try {
+            undoManager.apply(truthTable -> truthTable.modifyValues(m));
+            tableChanged();
+        } catch (ModifyException e) {
+            e.printStackTrace();
+            new ErrorMessage().addCause(e).show(TableDialog.this);
+        }
     }
 
     private JMenu createCreateMenu() {
@@ -523,8 +633,8 @@ public class TableDialog extends JDialog {
 
     private void createCircuit(boolean useJKff, boolean useLUTs, ExpressionModifier... modifier) {
         try {
-            final ModelAnalyserInfo modelAnalyzerInfo = model.getTable().getModelAnalyzerInfo();
-            CircuitBuilder circuitBuilder = new CircuitBuilder(shapeFactory, model.getTable().getVars())
+            final ModelAnalyserInfo modelAnalyzerInfo = undoManager.getActual().getModelAnalyzerInfo();
+            CircuitBuilder circuitBuilder = new CircuitBuilder(shapeFactory, undoManager.getActual().getVars())
                     .setUseJK(useJKff)
                     .setUseLUTs(useLUTs)
                     .setModelAnalyzerInfo(modelAnalyzerInfo);
@@ -549,19 +659,6 @@ public class TableDialog extends JDialog {
      */
     public TruthTableTableModel getModel() {
         return model;
-    }
-
-    /**
-     * Sets the table model
-     *
-     * @param model the model to use
-     */
-    public void setModel(TruthTableTableModel model) {
-        this.model = model;
-        model.addTableModelListener(new CalculationTableModelListener());
-        table.setModel(model);
-        karnaughMenuAction.setEnabled(model.getTable().getVars().size() <= 4);
-        calculateExpressions();
     }
 
     private String getProjectName() {
@@ -594,6 +691,13 @@ public class TableDialog extends JDialog {
         }
     }
 
+    /**
+     * @return the undoManager
+     */
+    public UndoManager<TruthTable> getUndoManager() {
+        return undoManager;
+    }
+
     private class CalculationTableModelListener implements TableModelListener {
         @Override
         public void tableChanged(TableModelEvent tableModelEvent) {
@@ -604,12 +708,12 @@ public class TableDialog extends JDialog {
     private void calculateExpressions() {
         try {
             LOGGER.info("start optimization");
-            ExpressionListener expressionListener = new HTMLExpressionListener();
+            ExpressionListener expressionListener = new OutputExpressionListener();
 
             if (createJK.isSelected())
                 expressionListener = new ExpressionListenerJK(expressionListener);
 
-            final TruthTable table = model.getTable();
+            final TruthTable table = undoManager.getActual();
             if (table.getVars().size() >= 8) {
                 ProgressDialog progress = new ProgressDialog(this);
 
@@ -661,7 +765,7 @@ public class TableDialog extends JDialog {
     }
 
     private final class SizeAction extends AbstractAction {
-        private int n;
+        private final int n;
 
         private SizeAction(int n) {
             super(Lang.get("menu_table_N_variables", n));
@@ -670,12 +774,13 @@ public class TableDialog extends JDialog {
 
         @Override
         public void actionPerformed(ActionEvent actionEvent) {
-            setModel(new TruthTableTableModel(new TruthTable(n).addResult()));
+            undoManager.setInitial(new TruthTable(n).addResult());
+            tableChanged();
         }
     }
 
     private final class SizeSequentialAction extends AbstractAction {
-        private int n;
+        private final int n;
 
         private SizeSequentialAction(int n) {
             super(Lang.get("menu_table_N_variables", n));
@@ -686,7 +791,7 @@ public class TableDialog extends JDialog {
         public void actionPerformed(ActionEvent actionEvent) {
             ArrayList<Variable> vars = new ArrayList<>();
             for (int i = n - 1; i >= 0; i--)
-                vars.add(new Variable("Q_" + i + "n"));
+                vars.add(new Variable("Q_" + i + "^n"));
             TruthTable truthTable = new TruthTable(vars);
             int i = n - 1;
             int rows = 1 << n;
@@ -694,16 +799,17 @@ public class TableDialog extends JDialog {
                 BoolTableByteArray val = new BoolTableByteArray(rows);
                 for (int n = 0; n < rows; n++)
                     val.set(n, ((n + 1) >> i) & 1);
-                truthTable.addResult(v.getIdentifier() + "+1", val);
+                truthTable.addResult(addOne(v.getIdentifier()), val);
                 i--;
             }
 
-            setModel(new TruthTableTableModel(truthTable));
+            undoManager.setInitial(truthTable);
+            tableChanged();
         }
     }
 
     private final class SizeSequentialBidirectionalAction extends AbstractAction {
-        private int n;
+        private final int n;
 
         private SizeSequentialBidirectionalAction(int n) {
             super(Lang.get("menu_table_N_variables", n));
@@ -713,9 +819,9 @@ public class TableDialog extends JDialog {
         @Override
         public void actionPerformed(ActionEvent actionEvent) {
             ArrayList<Variable> vars = new ArrayList<>();
-            vars.add(new Variable("dir"));
+            vars.add(new Variable("D"));
             for (int i = n - 1; i >= 0; i--)
-                vars.add(new Variable("Q_" + i + "n"));
+                vars.add(new Variable("Q_" + i + "^n"));
             TruthTable truthTable = new TruthTable(vars);
             int i = n - 1;
             int rows = 1 << (n + 1);
@@ -727,11 +833,12 @@ public class TableDialog extends JDialog {
                     else
                         val.set(n, ((n + 1) >> i) & 1);
                 }
-                truthTable.addResult(vars.get(vi).getIdentifier() + "+1", val);
+                truthTable.addResult(addOne(vars.get(vi).getIdentifier()), val);
                 i--;
             }
 
-            setModel(new TruthTableTableModel(truthTable));
+            undoManager.setInitial(truthTable);
+            tableChanged();
         }
     }
 
@@ -742,10 +849,14 @@ public class TableDialog extends JDialog {
             JLabel label = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
             label.setHorizontalAlignment(SwingConstants.CENTER);
             label.setFont(font);
-            if (column < model.getTable().getVars().size())
+            if (column < undoManager.getActual().getVars().size())
                 label.setBackground(MYGRAY);
-            else
-                label.setBackground(Color.WHITE);
+            else {
+                if ((row & 4) == 0)
+                    label.setBackground(Color.WHITE);
+                else
+                    label.setBackground(ODDWHITE);
+            }
 
             if (value instanceof Integer) {
                 int v = (int) value;
@@ -757,72 +868,61 @@ public class TableDialog extends JDialog {
         }
     }
 
-    private final class HTMLExpressionListener implements ExpressionListener {
-        private FormatToExpression htmlFormatter = new HTMLFormatter(FormatToExpression.getDefaultFormat());
-        private final StringBuilder html;
-        private int count;
-        private String firstExp;
-
-        private HTMLExpressionListener() {
-            html = new StringBuilder("<html><table style=\"white-space: nowrap\">\n");
-            count = 0;
+    private static final class StringDefaultTableCellRenderer extends DefaultTableCellRenderer {
+        private StringDefaultTableCellRenderer() {
+            setHorizontalAlignment(SwingConstants.CENTER);
         }
 
         @Override
-        public void resultFound(String name, Expression expression) throws FormatterException {
-            if (count == 0)
-                firstExp = "<html>" + htmlFormatter.identifier(name) + "=" + htmlFormatter.format(expression) + "</html>";
-            html.append("<tr>");
-            html.append("<td>").append(htmlFormatter.identifier(name)).append("</td>");
-            html.append("<td>=</td>");
-            html.append("<td>").append(htmlFormatter.format(expression)).append("</td>");
-            html.append("</tr>\n");
-            count++;
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            JLabel label = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+            label.setBackground(MYGRAY);
+
+            try {
+                label.setText(PlainTextFormatter.format(new Parser(value.toString()).parse()));
+            } catch (ParseException e) {
+                label.setText(value.toString());
+            }
+            setBorder(BorderFactory.createRaisedBevelBorder());
+
+            return label;
+        }
+    }
+
+    private final class OutputExpressionListener implements ExpressionListener {
+        private final ArrayList<Expression> expressions;
+
+        private OutputExpressionListener() {
+            expressions = new ArrayList<>();
+        }
+
+        @Override
+        public void resultFound(String name, Expression expression) {
+            if (name.endsWith("^n+1"))
+                name = name.substring(0, name.length() - 4) + "^{n+1}";
+            expressions.add(new NamedExpression(name, expression));
         }
 
         @Override
         public void close() {
-            html.append("</table></html>");
-
             SwingUtilities.invokeLater(() -> {
-                switch (count) {
+                switch (expressions.size()) {
                     case 0:
                         statusBar.setVisible(false);
-                        allSolutionsDialog.setNeeded(false);
+                        allSolutionsDialog.setNeeded(false, TableDialog.this.getBounds());
                         break;
                     case 1:
                         statusBar.setVisible(true);
-                        statusBar.setText(firstExp);
-                        allSolutionsDialog.setNeeded(false);
+                        statusBar.setExpression(expressions.get(0));
+                        allSolutionsDialog.setNeeded(false, TableDialog.this.getBounds());
                         break;
                     default:
                         statusBar.setVisible(false);
-                        allSolutionsDialog.setText(html.toString());
-                        allSolutionsDialog.setNeeded(true);
+                        allSolutionsDialog.setExpressions(expressions);
+                        allSolutionsDialog.setNeeded(true, TableDialog.this.getBounds());
+                        toFront();
                 }
             });
-        }
-    }
-
-    private final static class HTMLFormatter extends FormatToExpression {
-        private HTMLFormatter(FormatToExpression format) {
-            super(format);
-        }
-
-        @Override
-        public String identifier(String ident) {
-            int p = ident.indexOf("_");
-            if (p < 0)
-                return ident;
-            else
-                return ident.substring(0, p) + "<sub>" + checkBrace(ident.substring(p + 1)) + "</sub>";
-        }
-
-        private String checkBrace(String s) {
-            if (s.length() > 2 && s.charAt(0) == '{' && s.charAt(s.length() - 1) == '}')
-                return s.substring(1, s.length() - 1);
-            else
-                return s;
         }
     }
 
@@ -839,45 +939,18 @@ public class TableDialog extends JDialog {
             int c = table.getSelectedColumn();
             if (r < 0 || c < 0) {
                 r = 0;
-                c = model.getTable().getVars().size();
+                c = undoManager.getActual().getVars().size();
             }
             model.setValueAt(value, r, c);
 
             c++;
             if (c >= table.getColumnCount()) {
-                c = model.getTable().getVars().size();
+                c = undoManager.getActual().getVars().size();
                 r++;
                 if (r >= model.getRowCount())
                     r = 0;
             }
             table.changeSelection(r, c, false, false);
-        }
-    }
-
-    private final class LaTeXExpressionListener implements ExpressionListener {
-        private final StringBuilder sb;
-
-        private LaTeXExpressionListener(TruthTableTableModel model) throws ExpressionException {
-            sb = new StringBuilder();
-            if (model.getTable().getRows() <= 256) {
-                String text = new TruthTableFormatterLaTeX().format(model.getTable());
-                sb.append(text);
-            }
-            sb.append("\\begin{eqnarray*}\n");
-        }
-
-        @Override
-        public void resultFound(String name, Expression expression) throws FormatterException {
-            sb.append(FormatToTableLatex.formatIdentifier(name))
-                    .append("&=&")
-                    .append(FormatToExpression.FORMATTER_LATEX.format(expression))
-                    .append("\\\\\n");
-        }
-
-        @Override
-        public void close() {
-            sb.append("\\end{eqnarray*}\n");
-            new ShowStringDialog(TableDialog.this, Lang.get("win_table_exportDialog"), sb.toString()).setVisible(true);
         }
     }
 
@@ -893,11 +966,36 @@ public class TableDialog extends JDialog {
         @Override
         public void actionPerformed(ActionEvent e) {
             try {
-                generator.generate(TableDialog.this, filename, model.getTable(), lastGeneratedExpressions);
+                generator.generate(TableDialog.this, filename, undoManager.getActual(), lastGeneratedExpressions);
                 setLastUsedGenerator(generator);
             } catch (Exception e1) {
                 new ErrorMessage(Lang.get("msg_errorDuringHardwareExport")).addCause(e1).show(TableDialog.this);
             }
         }
+    }
+
+    private abstract class TextExportAction extends ToolTipAction {
+        private TextExportAction(String name) {
+            super(name);
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            try {
+                final ExpressionListener laTeXExpressionListener = createExpressionListener();
+                ExpressionListener expressionListener = laTeXExpressionListener;
+                if (createJK.isSelected())
+                    expressionListener = new ExpressionListenerJK(expressionListener);
+                lastGeneratedExpressions.replayTo(expressionListener);
+                expressionListener.close();
+
+                new ShowStringDialog(TableDialog.this, Lang.get("win_table_exportDialog"),
+                        laTeXExpressionListener.toString()).setVisible(true);
+            } catch (ExpressionException | FormatterException e1) {
+                new ErrorMessage(Lang.get("msg_errorDuringCalculation")).addCause(e1).show(TableDialog.this);
+            }
+        }
+
+        abstract ExpressionListener createExpressionListener() throws ExpressionException;
     }
 }

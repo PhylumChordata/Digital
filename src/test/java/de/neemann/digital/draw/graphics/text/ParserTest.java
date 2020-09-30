@@ -20,9 +20,11 @@ public class ParserTest extends TestCase {
         assertTrue(t instanceof Simple);
         assertEquals("In", ((Simple) t).getText());
 
-        t = new Parser("\\I^n_0").parse();
-        assertTrue(t instanceof Simple);
-        assertEquals("I^n_0", ((Simple) t).getText());
+        t = new Parser("I\\^n\\_0").parse();
+        assertEquals("I^n_0", t.toString());
+
+        t = new Parser("A\\_B").parse();
+        assertEquals("A_B", t.toString());
     }
 
     public void testSimple() throws ParseException {
@@ -43,6 +45,9 @@ public class ParserTest extends TestCase {
 
         assertEquals("Decorate{≥1, MATH}", new Parser("$≥1$").parse().toString());
         assertEquals("Decorate{MR, OVERLINE}", new Parser("~MR").parse().toString());
+
+        assertEquals("A=∑ b", new Parser("A=\\sum b").parse().toString());
+        assertEquals("A=∑^{m}_{n=0}", new Parser("A=\\sum_{n=0}^m").parse().toString());
     }
 
 }

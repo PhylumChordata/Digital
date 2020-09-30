@@ -12,12 +12,31 @@ import javax.swing.*;
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
+import java.util.HashSet;
 
 /**
- * Helper to handle the overwrite conformation
- * <p>
+ * Helper to handle the overwrite confirmation
  */
 public final class SaveAsHelper {
+    private static final HashSet<String> KNOWN = new HashSet<>();
+
+    static {
+        KNOWN.add("dig");
+        KNOWN.add("fsm");
+        KNOWN.add("hex");
+        KNOWN.add("tru");
+        KNOWN.add("svg");
+        KNOWN.add("vhdl");
+        KNOWN.add("v");
+        KNOWN.add("csv");
+        KNOWN.add("gif");
+        KNOWN.add("png");
+        KNOWN.add("tt2");
+        KNOWN.add("cupl");
+        KNOWN.add("jed");
+        KNOWN.add("zip");
+    }
+
     private final Component parent;
     private final JFileChooser fc;
     private final String suffix;
@@ -102,8 +121,13 @@ public final class SaveAsHelper {
 
         String name = filename.getName();
         int p = name.lastIndexOf('.');
-        if (p >= 0 && p == name.length() - 4)
-            name = name.substring(0, p);
+        if (p >= 0) {
+            String suf = name.substring(p + 1).toLowerCase();
+            if (KNOWN.contains(suf))
+                name = name.substring(0, p);
+            while (name.length() > 0 && name.charAt(name.length() - 1) == '.')
+                name = name.substring(0, name.length() - 1);
+        }
         return new File(filename.getParentFile(), name + "." + suffix);
     }
 

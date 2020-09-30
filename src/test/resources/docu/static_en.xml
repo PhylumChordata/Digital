@@ -90,13 +90,13 @@
             <par><image src="scr10.png"/></par>
             <par>
                 To further process the circuit, the simulation must first be stopped. The easiest way to do this is
-                with the Stop button in the tool bar. Clicking on a component with the right mouse button opens a
-                dialog which displays the component's properties. The label 'A' can be defined for the first
-                input via this dialog.
+                with the Stop button in the tool bar. Clicking on a component with the right mouse button
+                (control-click on MacOS) opens a dialog which shows the component's properties. The label 'A' can
+                be defined for the first input via this dialog.
             </par>
             <par><image src="scr11.png"/></par>
             <par>
-                In this way, the labels for the remaining inputs and outputs can be configured. The menu item
+                In this way, the labels for the remaining inputs and outputs can be defined. The menu item
                 <e>Analysis</e> also contains a menu item <e>Analysis</e>. This function performs an analysis of
                 the current circuit. However, this is only possible if all inputs and outputs are labeled properly.
             </par>
@@ -240,7 +240,8 @@
                 So if you include a complex circuit which has a large propagation delay because the input signals
                 has to pass three gates until it reaches the output, this behaviour is conserved while including this
                 circuit.
-                There are no additional delays introduced as a result of including a circuit. If not all outputs of a circuit have
+                There are no additional delays introduced as a result of including a circuit. If not all outputs of a
+                circuit have
                 the same propagation delay, then this is also the case if it is included in a parent circuit.
                 In general, including a circuit into an other circuit does not modify its timing behaviour at all. An
                 included circuit behaves exactly the same way as if all components had been inserted at the same circuit
@@ -248,17 +249,18 @@
             </par>
         </subchapter>
     </chapter>
-    <chapter heading="Circuit Analysis and Synthesis">
-        <par>
-            A circuit can be analyzed via the menu entry <e>Analysis</e>. A truth table is generated for purely
-            combinatorial circuits. This truth table can be edited as desired.
-            A new circuit can be generated from this truth table after editing.
-        </par>
-        <par>
-            In addition to purely combinatorial circuits, it is also possible to analyze or generate sequential
-            circuits.
-            Instead of a simple truth table a so-called state transition table is created.
-            Each flip-flop thereby appears on the input side and the output side of the state transition table.
+    <chapter heading="Analysis">
+        <subchapter heading="Circuit Analysis and Synthesis">
+            <par>
+                A circuit can be analyzed via the menu entry <e>Analysis</e>. A truth table is generated for purely
+                combinatorial circuits. This truth table can be edited as desired.
+                A new circuit can be generated from this truth table after editing.
+            </par>
+            <par>
+                In addition to purely combinatorial circuits, it is also possible to analyze or generate sequential
+                circuits.
+                Instead of a simple truth table a so-called state transition table is created.
+                Each flip-flop thereby appears on the input side and the output side of the state transition table.
             In this table, on the right-hand side, you can find the next state, which will
             occur after the next clock signal. This next state depends on the current state of the flip-flops as found
             at the left-hand side of the table.
@@ -272,11 +274,33 @@
             it is assumed that the table is a state transition table, and a sequential circuit is generated instead of
             a combinatorial circuit.
         </par>
-        <par>
-            It should be noted that the circuit to be analyzed may contain only purely combinatorial elements in
-            addition to the built-in D and JK flip-flops. If a flip-flop is e.g. made from Nor gates, this
-            circuit is not recognized as a flip-flop and therefore it is not possible to analyse such a circuit.
-        </par>
+            <par>
+                It should be noted that the circuit to be analyzed may contain only purely combinatorial elements in
+                addition to the built-in D and JK flip-flops. If a flip-flop is e.g. made from Nor gates, this
+                circuit is not recognized as a flip-flop and therefore it is not possible to analyse such a circuit.
+            </par>
+        </subchapter>
+        <subchapter heading="Expression">
+            <par>
+                Via the menu item <e>Expression</e> it is possible to enter a boolean function from which a
+                circuit can then be generated.
+            </par>
+        </subchapter>
+        <subchapter heading="State charts">
+            <par>
+                An editor for state charts is available via the menu item <e>Finite State Machine</e>.
+                It allows the graphical creation of state machines by drawing states and state transitions.
+                Thereby different outputs can be set in the different states.
+                By providing transitions with conditions, input signals can be generated.
+                By setting output values at transitions, Mealy automata can also be defined.
+            </par>
+            <par>
+                The state machine defined in this way can then be automatically transferred to a state transition table,
+                from which, in a further step, a circuit implementing the initial state machine can be generated.
+                If the simulation of this circuit is then started, the current state can also be followed in the
+                state chart.
+            </par>
+        </subchapter>
     </chapter>
     <chapter heading="Hardware">
         <subchapter heading="GAL16v8 and GAL22v10">
@@ -431,6 +455,78 @@
             some experimentation may be required before the desired result is achieved.
         </par>
     </chapter>
+    <chapter heading="Generic Circuits">
+        <par>
+            It happens that a subcircuit has been created, and this is to be used in different variants.
+            For example, you can imagine a special counter that is needed for different bit widths.
+            If one would create a subcircuit for 4, 5 and 6 bits each, the maintenance of the circuit
+            would be difficult in the future, since one must always work on several subcircuits, which are
+            identical except for one parameter, the bit width.
+        </par>
+        <par>
+            To prevent this, a generic subcircuit can be created which can be parameterized.
+            For this purpose, the checkbox "Circuit is generic" must be set in the circuit specific settings.
+            Then the parameter dialog of each component in that circuit contains the additional field "generic
+            parameterization". In this field program code can be entered, which can change the parameters of the
+            component. Each parameter has a name and can be modified as an attribute of the field <e>this</e>.
+            The names of the parameters can be found in the help dialog of the component.
+            If you want to change the bit width of an adder, the line <e>this.Bits=int(1);</e> can be used.
+            Constants - here the one - are always of type <e>long</e>, but the bit width is an <e>int</e>.
+            Therefore the type conversion to an <e>int</e> is necessary.
+        </par>
+        <par>
+            In this way, however, it is not yet possible to create a circuit that can be parameterized.
+            It is still necessary to access parameters that are set when the circuit is used.
+            This is done via the field "args". If you want to set the bit width from outside, you can write:
+            <e>this.Bits=int(args.bitWidth);</e>. The name of the argument - here <e>bitWidth</e> is arbitrary.
+            If such a subcircuit is used, this argument must be set.
+        </par>
+        <par>
+            If the circuit is used and the parameter dialog of the embedded circuit is opened, it also has a
+            field "generic parameterization". Here the bit width to be used can be set with the instruction
+            <e>bitWidth:=5;</e>.
+        </par>
+        <par>
+            In this way, no wires or components can be removed or added. Nevertheless, many circuits can be
+            realized with a trick. This is achieved by replacing one circuit with another, depending on the
+            arguments. For this purpose the function <e>setCircuit([Name])</e> is available.
+            If it is called in the definition part of a subcircuit, the circuit to be inserted can be replaced
+            by another circuit. This allows the recursive definition of a circuit. As in other programming
+            languages, a suitable termination condition must be ensured.
+        </par>
+        <par>
+            The <e>examples/generic</e> folder contains an example of a Gray code counter whose bit width can
+            be configured. Here a Gray code counter is constructed by recursively adding further bits to an
+            initial circuit until the required number of bits of the counter is reached.
+        </par>
+    </chapter>
+    <chapter heading="Script-controlled testing">
+        <par>
+            If students are to complete exercises with Digital, it can be helpful if the circuits submitted by the
+            students can be checked in an automatic process. To perform this check, Digital can be started
+            from the command line. The call is done as follows:
+        </par>
+        <par>
+            <code>
+                java -cp Digital.jar CLI test [file to test] [-tests [optional file with
+                test cases]]
+            </code>
+        </par>
+        <par>
+            If only the file to be tested is specified, the test cases in that file are executed. In this way, the
+            test cases created by the students themselves can be executed.
+        </par>
+        <par>
+            If a second file name is specified, the test cases are taken from the second file and the first circuit
+            is checked with these test cases. The second file will therefore usually contain the sample solution
+            whose test cases are complete and correct. The circuit contained in the second file is ignored.
+            Only the test cases are taken from it.
+        </par>
+        <par>
+            In order to test a submitted circuit against a sample solution, the signal names of the inputs and
+            outputs in both circuits must match.
+        </par>
+    </chapter>
     <chapter heading="Frequently asked Questions">
         <faq>
             <question>How to move a wire?</question>
@@ -521,13 +617,21 @@
         </faq>
         <faq>
             <question>When creating a JEDEC file: How to assign a pin number to a certain signal?</question>
-            <answer>At the corresponding inputs and outputs you can enter a pin number in the settings dialog of the pin.
+            <answer>At the corresponding inputs and outputs you can enter a pin number in the settings dialog of the
+                pin.
             </answer>
         </faq>
         <faq>
             <question>I have created a JEDEC file. How to program it to a <e>GAL16v8</e> or <e>GAL22v10</e>?
             </question>
             <answer>To program such a chip a special programmer hardware is necessary.</answer>
+        </faq>
+        <faq>
+            <question>I have created a circuit that I want to use in many other circuits.
+                How can I do this without copying the file over and over again into the appropriate folders?
+            </question>
+            <answer>The circuit can be saved in the "lib" folder. Then it is available in all other circuits.
+            </answer>
         </faq>
     </chapter>
     <chapter heading="Keyboard Shortcuts" newpage="true">
@@ -539,6 +643,9 @@
             <shortcut key="C">A single clock step (Works only in a running simulation and only if there is a single
                 clock component).
             </shortcut>
+            <shortcut key="V">Execute a single gate step.</shortcut>
+            <shortcut key="B">Execute all single gate steps until the circuit has stabilized or,
+                if a break component is present, until the break.</shortcut>
             <shortcut key="F9">Analysis of the circuit</shortcut>
             <shortcut key="CTRL-A">Select all.</shortcut>
             <shortcut key="CTRL-X">Cuts the selected components to the clipboard.</shortcut>
@@ -547,6 +654,7 @@
             <shortcut key="CTRL-D">Duplicate the current selection without modifying the clipboard.</shortcut>
             <shortcut key="R">While inserting this rotates the components.</shortcut>
             <shortcut key="L">Inserts the last inserted component again.</shortcut>
+            <shortcut key="T">Inserts a new tunnel.</shortcut>
             <shortcut key="CTRL-N">New circuit.</shortcut>
             <shortcut key="CTRL-O">Open circuit.</shortcut>
             <shortcut key="CTRL-S">Save the circuit.</shortcut>
@@ -559,8 +667,12 @@
             <shortcut key="ESC">Abort the current action.</shortcut>
             <shortcut key="Del">Removes the selected components.</shortcut>
             <shortcut key="Backspace">Removes the selected components.</shortcut>
-            <shortcut key="+">Increases the number of inputs at the component the mouse points to.</shortcut>
-            <shortcut key="-">Decreases the number of inputs at the component the mouse points to.</shortcut>
+            <shortcut key="+">Increases the number of inputs at the component the mouse points to. If it is used with
+                constants, the value is increased.
+            </shortcut>
+            <shortcut key="-">Decreases the number of inputs at the component the mouse points to. If it is used with
+                constants, the value is decreased.
+            </shortcut>
             <shortcut key="CTRL +">Zoom In</shortcut>
             <shortcut key="CTRL -">Zoom Out</shortcut>
             <shortcut key="F1">Fit to size</shortcut>

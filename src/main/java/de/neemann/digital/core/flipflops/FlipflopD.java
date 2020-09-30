@@ -10,6 +10,7 @@ import de.neemann.digital.core.element.Element;
 import de.neemann.digital.core.element.ElementAttributes;
 import de.neemann.digital.core.element.ElementTypeDescription;
 import de.neemann.digital.core.element.Keys;
+import de.neemann.digital.core.stats.Countable;
 
 import static de.neemann.digital.core.ObservableValues.ovs;
 import static de.neemann.digital.core.element.PinInfo.input;
@@ -17,7 +18,7 @@ import static de.neemann.digital.core.element.PinInfo.input;
 /**
  * The D Flipflop
  */
-public class FlipflopD extends Node implements Element {
+public class FlipflopD extends Node implements Element, Countable {
 
     /**
      * The D-FF description
@@ -25,11 +26,13 @@ public class FlipflopD extends Node implements Element {
     public static final ElementTypeDescription DESCRIPTION
             = new ElementTypeDescription("D_FF", FlipflopD.class, input("D"), input("C").setClock())
             .addAttribute(Keys.ROTATE)
+            .addAttribute(Keys.MIRROR)
             .addAttribute(Keys.BITS)
             .addAttribute(Keys.LABEL)
             .addAttribute(Keys.DEFAULT)
             .addAttribute(Keys.INVERTER_CONFIG)
-            .addAttribute(Keys.VALUE_IS_PROBE);
+            .addAttribute(Keys.VALUE_IS_PROBE)
+            .supportsHDL();
 
     private final int bits;
     private final boolean isProbe;
@@ -40,6 +43,7 @@ public class FlipflopD extends Node implements Element {
     private ObservableValue qn;
     private boolean lastClock;
     private long value;
+    private long defaultValue;
 
     /**
      * Creates a new instance
@@ -58,9 +62,13 @@ public class FlipflopD extends Node implements Element {
      * @param label the label
      * @param q     output
      * @param qn    inverted output
+     * @param def   the default value
      */
-    public FlipflopD(String label, ObservableValue q, ObservableValue qn) {
-        this(new ElementAttributes().set(Keys.LABEL, label).setBits(q.getBits()), q, qn);
+    public FlipflopD(String label, ObservableValue q, ObservableValue qn, long def) {
+        this(new ElementAttributes()
+                .set(Keys.LABEL, label)
+                .setBits(q.getBits())
+                .set(Keys.DEFAULT, def), q, qn);
         if (qn.getBits() != q.getBits())
             throw new RuntimeException("wrong bit count given!");
     }
@@ -73,7 +81,8 @@ public class FlipflopD extends Node implements Element {
         isProbe = attributes.get(Keys.VALUE_IS_PROBE);
         label = attributes.getLabel();
 
-        value = attributes.get(Keys.DEFAULT);
+        defaultValue = attributes.get(Keys.DEFAULT);
+        value = defaultValue;
         q.setValue(value);
         qn.setValue(~value);
     }
@@ -135,14 +144,20 @@ public class FlipflopD extends Node implements Element {
         return clockVal;
     }
 
-    /**
-     * @return number of bits
-     */
-    public int getBits() {
+    @Override
+    public int getDataBits() {
         return bits;
     }
 
     void setValue(long value) {
         this.value = value;
     }
+
+    /**
+     * @return the default value
+     */
+    public long getDefault() {
+        return defaultValue;
+    }
+
 }

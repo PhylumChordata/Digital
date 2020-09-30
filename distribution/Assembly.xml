@@ -23,6 +23,10 @@
             <outputDirectory>/</outputDirectory>
         </file>
         <file>
+            <source>${basedir}/src/main/svg/icon.svg</source>
+            <outputDirectory>/</outputDirectory>
+        </file>
+        <file>
             <source>${basedir}/distribution/ReleaseNotes.txt</source>
             <outputDirectory>/</outputDirectory>
         </file>
@@ -53,7 +57,7 @@
         </fileSet>
         <fileSet>
             <directory>${basedir}/src/main/dig/lib</directory>
-            <outputDirectory>/examples/lib/</outputDirectory>
+            <outputDirectory>/lib/</outputDirectory>
             <includes>
                 <include>**/*.dig</include>
                 <include>**/*.txt</include>
@@ -107,6 +111,13 @@
             <outputDirectory>/examples/graphicRam/</outputDirectory>
             <includes>
                 <include>*.dig</include>
+            </includes>
+        </fileSet>
+        <fileSet>
+            <directory>${basedir}/src/main/dig/generic</directory>
+            <outputDirectory>/examples/generic/</outputDirectory>
+            <includes>
+                <include>**/*.dig</include>
             </includes>
         </fileSet>
         <fileSet>

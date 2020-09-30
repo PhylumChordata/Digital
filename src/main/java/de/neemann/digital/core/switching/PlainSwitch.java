@@ -54,6 +54,13 @@ public final class PlainSwitch implements NodeInterface {
     }
 
     /**
+     * @return the number of data bits
+     */
+    public int getBits() {
+        return bits;
+    }
+
+    /**
      * Sets the inputs of this switch
      *
      * @param input1 first input
@@ -95,7 +102,7 @@ public final class PlainSwitch implements NodeInterface {
                     if (constant != null)
                         return new UniDirectionalSwitch(constant, output1);
                     else
-                        return new RealSwitch(in1, in2);
+                        return new RealSwitch(in1, output1, in2, output2);
                 }
             } else
                 return new UniDirectionalSwitch(input1, output2);
@@ -243,12 +250,16 @@ public final class PlainSwitch implements NodeInterface {
      */
     public static final class RealSwitch implements SwitchModel {
         private final CommonBusValue input1;
+        private final ObservableValue output1;
         private final CommonBusValue input2;
+        private final ObservableValue output2;
         private BusModelStateObserver obs;
 
-        private RealSwitch(CommonBusValue input1, CommonBusValue input2) {
+        private RealSwitch(CommonBusValue input1, ObservableValue output1, CommonBusValue input2, ObservableValue output2) {
             this.input1 = input1;
+            this.output1 = output1;
             this.input2 = input2;
+            this.output2 = output2;
         }
 
         @Override
@@ -277,6 +288,20 @@ public final class PlainSwitch implements NodeInterface {
          */
         public CommonBusValue getInput2() {
             return input2;
+        }
+
+        /**
+         * @return the output used by the left hand side pin
+         */
+        public ObservableValue getOutput1() {
+            return output1;
+        }
+
+        /**
+         * @return the output used by the right hand side pin
+         */
+        public ObservableValue getOutput2() {
+            return output2;
         }
     }
 }

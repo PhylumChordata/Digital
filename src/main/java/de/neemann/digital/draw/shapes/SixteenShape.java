@@ -6,7 +6,6 @@
 package de.neemann.digital.draw.shapes;
 
 import de.neemann.digital.core.ObservableValue;
-import de.neemann.digital.core.Observer;
 import de.neemann.digital.core.Value;
 import de.neemann.digital.core.element.ElementAttributes;
 import de.neemann.digital.core.element.Keys;
@@ -15,9 +14,6 @@ import de.neemann.digital.draw.elements.IOState;
 import de.neemann.digital.draw.elements.Pin;
 import de.neemann.digital.draw.elements.Pins;
 import de.neemann.digital.draw.graphics.*;
-import de.neemann.digital.draw.graphics.Polygon;
-
-import java.awt.*;
 
 import static de.neemann.digital.draw.shapes.GenericShape.SIZE;
 
@@ -68,7 +64,7 @@ public class SixteenShape implements Shape {
     public SixteenShape(ElementAttributes attr, PinDescriptions inputs, PinDescriptions outputs) {
         pins = inputs;
         onStyle = Style.NORMAL.deriveFillStyle(attr.get(Keys.COLOR));
-        offStyle = Style.NORMAL.deriveFillStyle(new Color(230, 230, 230));
+        offStyle = Style.NORMAL.deriveFillStyle(ColorKey.GRID);
         size = attr.get(Keys.SEVEN_SEG_SIZE);
     }
 
@@ -80,9 +76,9 @@ public class SixteenShape implements Shape {
     }
 
     @Override
-    public InteractorInterface applyStateMonitor(IOState ioState, Observer guiObserver) {
-        input = ioState.getInput(0).addObserverToValue(guiObserver);
-        dp = ioState.getInput(1).addObserverToValue(guiObserver);
+    public InteractorInterface applyStateMonitor(IOState ioState) {
+        input = ioState.getInput(0);
+        dp = ioState.getInput(1);
         return null;
     }
 
